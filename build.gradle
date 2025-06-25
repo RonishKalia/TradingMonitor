@@ -13,6 +13,18 @@ repositories {
 dependencies {
     testImplementation platform('org.junit:junit-bom:5.8.2')
     testImplementation 'org.junit.jupiter:junit-jupiter'
+    
+    // Yahoo Finance API for stock data
+    implementation 'com.yahoofinance-api:YahooFinanceAPI:3.17.0'
+    
+    // JSON processing
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.15.2'
+    
+    // HTTP client for API calls
+    implementation 'org.apache.httpcomponents:httpclient:4.5.14'
+    
+    // Logging
+    implementation 'org.slf4j:slf4j-simple:2.0.7'
 }
 
 application {

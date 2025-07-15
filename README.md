@@ -45,14 +45,18 @@ This will:
 StockAnalyzer analyzer = new StockAnalyzer();
 
 // Analyze a specific exchange
-List<StockAnalyzer.StockData> stockData = analyzer.analyzeExchange("NYSE");
+try {
+    List<StockAnalyzer.StockData> stockData = analyzer.analyzeExchange("NYSE");
 
-// Print analysis summary
-analyzer.printAnalysisSummary(stockData);
+    // Print analysis summary
+    analyzer.printAnalysisSummary(stockData);
 
-// Access individual stock data
-for (StockAnalyzer.StockData stock : stockData) {
-    System.out.println(stock.getSymbol() + " - P/E: " + stock.getPeRatio());
+    // Access individual stock data
+    for (StockAnalyzer.StockData stock : stockData) {
+        System.out.println(stock.getSymbol() + " - P/E: " + stock.getPeRatio());
+    }
+} catch (IllegalArgumentException e) {
+    System.err.println(e.getMessage());
 }
 ```
 
@@ -107,8 +111,8 @@ Supported exchanges: [NYSE, NASDAQ, SP500]
 
 Starting analysis of NASDAQ stocks...
 Analyzing 32 stocks from NASDAQ...
-✓ AAPL - P/E: 25.5, Revenue: $394.33B, Gross Profit: $170.78B
-✓ MSFT - P/E: 30.2, Revenue: $198.27B, Gross Profit: $135.62B
+✓ AAPL - P/E: 25.5, Revenue: $394.33B
+✓ MSFT - P/E: 30.2, Revenue: $198.27B
 ...
 
 === STOCK ANALYSIS SUMMARY ===
@@ -124,5 +128,5 @@ Revenue Analysis:
   Highest Revenue: AAPL ($394.33B)
 
 Gross Profit Analysis:
-  Total Gross Profit (all stocks): $1,245.89B
-  Highest Gross Profit: AAPL ($170.78B)
+  Note: Data not available for this metric.
+```

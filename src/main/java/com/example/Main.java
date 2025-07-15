@@ -45,9 +45,6 @@ public class Main {
                 ));
             }
             
-        } catch (IOException e) {
-            System.err.println("Error during stock analysis: " + e.getMessage());
-            e.printStackTrace();
         } catch (IllegalArgumentException e) {
             System.err.println("Invalid exchange: " + e.getMessage());
         }

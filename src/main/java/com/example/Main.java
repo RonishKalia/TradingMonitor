@@ -18,7 +18,14 @@ public class Main {
     }
     
     public void runStockAnalysis() {
-        StockApiClient apiClient = new StockApiClient("d1rapopr01qk8n65sjs0d1rapopr01qk8n65sjsg");
+        String apiKey = System.getenv("FINNHUB_API_KEY");
+        if (apiKey == null || apiKey.trim().isEmpty()) {
+            System.err.println("Error: FINNHUB_API_KEY environment variable not set.");
+            System.err.println("Please set the environment variable to your Finnhub API key.");
+            return;
+        }
+
+        StockApiClient apiClient = new StockApiClient(apiKey);
         StockAnalyzer analyzer = new StockAnalyzer(apiClient);
         
         System.out.println("\n=== TRADING MONITOR - STOCK ANALYSIS ===");

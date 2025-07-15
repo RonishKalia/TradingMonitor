@@ -15,6 +15,10 @@ public class StockAnalyzerTest {
 
     // Stub for StockApiClient for testing purposes
     class StockApiClientStub extends StockApiClient {
+        public StockApiClientStub() {
+            super("test-api-key");
+        }
+
         @Override
         public Stock fetchStockData(String symbol, String exchange) throws IOException {
             // Return some mock data for testing

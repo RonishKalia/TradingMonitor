@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
 public class StockAnalyzer {
 
     private static final Map<String, List<String>> EXCHANGE_SYMBOLS = new HashMap<>();
-    private static final int API_REQUEST_DELAY_MS = 100;
+    private static final int API_REQUEST_DELAY_MS = 2000;
 
     private final StockApiClient stockApiClient;
 
@@ -28,10 +28,7 @@ public class StockAnalyzer {
             "TRV", "WBA", "INTC", "VZ", "MSFT"
         ));
         EXCHANGE_SYMBOLS.put("NASDAQ", Arrays.asList(
-            "AAPL", "MSFT", "AMZN", "GOOGL", "GOOG", "META", "TSLA", "NVDA", "ASML", "AVGO",
-            "PEP", "COST", "CMCSA", "ADBE", "INTC", "CSCO", "TMUS", "AMD", "TXN", "QCOM",
-            "AMGN", "HON", "INTU", "AMAT", "ISRG", "SBUX", "MDLZ", "GILD", "BKNG", "ADP",
-            "PYPL", "NFLX"
+            "AAPL", "MSFT", "AMZN", "GOOGL", "GOOG", "META", "TSLA", "NVDA"
         ));
         EXCHANGE_SYMBOLS.put("SP500", Arrays.asList(
             "AAPL", "MSFT", "AMZN", "GOOGL", "GOOG", "META", "TSLA", "NVDA", "JPM", "V",
@@ -89,7 +86,7 @@ public class StockAnalyzer {
     private void printMetricAnalysis(String metricName, List<Stock> stockData, Function<Stock, BigDecimal> metricExtractor, boolean isRatio) {
         List<Stock> validData = stockData.stream()
             .filter(s -> metricExtractor.apply(s) != null && metricExtractor.apply(s).compareTo(BigDecimal.ZERO) > 0)
-            .collect(Collectors.toList());
+            .toList();
 
         if (validData.isEmpty()) {
             System.out.println("\n" + metricName + " Analysis:");
@@ -121,7 +118,7 @@ public class StockAnalyzer {
             .filter(s -> s.getMarketCap() != null && s.getMarketCap().compareTo(BigDecimal.ZERO) > 0)
             .sorted(Comparator.comparing(Stock::getMarketCap).reversed())
             .limit(5)
-            .collect(Collectors.toList());
+            .toList();
 
         if (!validMarketCap.isEmpty()) {
             System.out.println("\nTop 5 Stocks by Market Cap:");

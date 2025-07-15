@@ -1,38 +1,42 @@
 package com.example;
 
-import yahoofinance.Stock;
-import yahoofinance.YahooFinance;
-import yahoofinance.quotes.stock.StockQuote;
-import yahoofinance.quotes.stock.StockStats;
-
+import io.finnhub.api.apis.DefaultApi;
+import io.finnhub.api.infrastructure.ApiClient;
+import io.finnhub.api.models.CompanyProfile2;
+import io.finnhub.api.models.Quote;
 import java.io.IOException;
 import java.math.BigDecimal;
 
 public class StockApiClient {
 
-    public com.example.Stock fetchStockData(String symbol, String exchange) throws IOException {
-        Stock stock = YahooFinance.get(symbol);
-        if (stock == null || !stock.isValid()) {
-            return null;
+    private final DefaultApi finnhubClient;
+
+    public StockApiClient(String apiKey) {
+        this.finnhubClient = new DefaultApi(apiKey);
+    }
+
+    public Stock fetchStockData(String symbol, String exchange) throws IOException {
+        try {
+            Quote quote = finnhubClient.quote(symbol);
+            CompanyProfile2 profile = finnhubClient.companyProfile2(symbol, null, null);
+
+            if (quote == null || profile == null) {
+                return null;
+            }
+
+            return new Stock(
+                symbol,
+                profile.getName(),
+                quote.getC() != null ? new BigDecimal(quote.getC()) : null,
+                null, // P/E ratio not directly available in these endpoints
+                profile.getMarketCapitalization() != null ? new BigDecimal(profile.getMarketCapitalization()) : null,
+                null, // Revenue not directly available in these endpoints
+                null, // Gross profit not available
+                null,
+                exchange
+            );
+        } catch (Exception e) {
+            throw new IOException("Failed to fetch data for symbol: " + symbol, e);
         }
-
-        StockQuote quote = stock.getQuote();
-        StockStats stats = stock.getStats();
-
-        if (quote == null || stats == null) {
-            return null;
-        }
-
-        return new com.example.Stock(
-            symbol,
-            stock.getName(),
-            quote.getPrice(),
-            stats.getPe(),
-            stats.getMarketCap(),
-            stats.getRevenue(),
-            null, // Gross profit not available in Yahoo Finance API
-            quote.getVolume() != null ? BigDecimal.valueOf(quote.getVolume()) : null,
-            exchange
-        );
     }
 }

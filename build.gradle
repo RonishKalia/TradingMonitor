@@ -1,6 +1,7 @@
 plugins {
     id 'java'
     id 'application'
+    id 'org.jetbrains.kotlin.jvm' version '1.9.22'
 }
 
 group = 'com.example'
@@ -14,8 +15,8 @@ dependencies {
     testImplementation platform('org.junit:junit-bom:5.8.2')
     testImplementation 'org.junit.jupiter:junit-jupiter'
     
-    // Yahoo Finance API for stock data
-    implementation 'com.yahoofinance-api:YahooFinanceAPI:3.17.0'
+    // Finnhub API for stock data
+    implementation 'io.finnhub:kotlin-client:2.0.20'
     
     // JSON processing
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.15.2'
@@ -25,6 +26,7 @@ dependencies {
     
     // Logging
     implementation 'org.slf4j:slf4j-simple:2.0.7'
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
 }
 
 application {
@@ -36,6 +38,10 @@ tasks.named('test') {
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+kotlin {
+    jvmToolchain(17)
 }

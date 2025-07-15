@@ -18,7 +18,7 @@ public class Main {
     }
     
     public void runStockAnalysis() {
-        StockApiClient apiClient = new StockApiClient();
+        StockApiClient apiClient = new StockApiClient("d1rapopr01qk8n65sjs0d1rapopr01qk8n65sjsg");
         StockAnalyzer analyzer = new StockAnalyzer(apiClient);
         
         System.out.println("\n=== TRADING MONITOR - STOCK ANALYSIS ===");

@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
 
 public class StockTest {
 
@@ -14,10 +15,14 @@ public class StockTest {
             BigDecimal.valueOf(150.0),
             BigDecimal.valueOf(25.5),
             BigDecimal.valueOf(2500000000000L),
-            BigDecimal.valueOf(394328000000L),
-            BigDecimal.valueOf(170782000000L),
             BigDecimal.valueOf(1000000),
-            "NASDAQ"
+            "NASDAQ",
+            new HashMap<>(),
+            new HashMap<>(),
+            new HashMap<>(),
+            new HashMap<>(),
+            new HashMap<>(),
+            new HashMap<>()
         );
 
         assertEquals("AAPL", stock.getSymbol());

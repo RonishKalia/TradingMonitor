@@ -7,7 +7,9 @@ import static org.junit.jupiter.api.Assertions.*;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.IntStream;
 
 public class StockAnalyzerTest {
@@ -17,7 +19,7 @@ public class StockAnalyzerTest {
     // Stub for StockApiClient for testing purposes
     class StockApiClientStub extends StockApiClient {
         public StockApiClientStub() {
-            super("test-api-key");
+            super("test-api-key", "test-api-key", "test-api-key");
         }
 
         @Override
@@ -36,10 +38,14 @@ public class StockAnalyzerTest {
                 BigDecimal.valueOf(100.0),
                 BigDecimal.valueOf(20.0),
                 BigDecimal.valueOf(1000000000),
-                BigDecimal.valueOf(50000000),
-                BigDecimal.valueOf(20000000),
                 BigDecimal.valueOf(1000000),
-                exchange
+                exchange,
+                new HashMap<>(),
+                new HashMap<>(),
+                new HashMap<>(),
+                new HashMap<>(),
+                new HashMap<>(),
+                new HashMap<>()
             );
         }
     }
@@ -70,5 +76,6 @@ public class StockAnalyzerTest {
         assertEquals("2.00B", analyzer.formatBigNumber(java.math.BigDecimal.valueOf(2000000000)));
         assertEquals("N/A", analyzer.formatBigNumber(null));
     }
-}
+
+    }
  

@@ -24,18 +24,23 @@ public class StockApiClient {
     private static final String SYMBOL_URL_FORMAT = BASE_URL + "/stock/symbol?exchange=US&token=%s";
     private static final String QUOTE_URL_FORMAT = BASE_URL + "/quote?symbol=%s&token=%s";
     private static final String PROFILE_URL_FORMAT = BASE_URL + "/stock/profile2?symbol=%s&token=%s";
-    private static final String METRIC_URL_FORMAT = BASE_URL + "/stock/metric?symbol=%s&metric=all&token=%s";
-    private static final String FINANCIALS_URL_FORMAT = BASE_URL + "/stock/financials-reported?symbol=%s&freq=annual&token=%s";
+    private static final String FMP_KEY_METRICS_URL_FORMAT = "https://financialmodelingprep.com/api/v3/key-metrics-ttm/%s?apikey=%s";
+    private static final String FMP_FINANCIALS_URL_FORMAT = "https://financialmodelingprep.com/api/v3/income-statement/%s?limit=5&apikey=%s";
+    private static final String ALPHA_VANTAGE_URL_FORMAT = "https://www.alphavantage.co/query?function=INCOME_STATEMENT&symbol=%s&apikey=%s";
     private static final int MAX_REQUESTS_PER_MINUTE = 60;
     private static final long TIME_WINDOW_MS = 65 * 1000; // 65 seconds
 
-    private final String apiKey;
+    private final String finnhubApiKey;
+    private final String fmpApiKey;
+    private final String alphaVantageApiKey;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
     private final BlockingQueue<Long> requestTimestamps;
 
-    public StockApiClient(String apiKey) {
-        this.apiKey = apiKey;
+    public StockApiClient(String finnhubApiKey, String fmpApiKey, String alphaVantageApiKey) {
+        this.finnhubApiKey = finnhubApiKey;
+        this.fmpApiKey = fmpApiKey;
+        this.alphaVantageApiKey = alphaVantageApiKey;
         this.httpClient = HttpClient.newHttpClient();
         this.objectMapper = new ObjectMapper();
         this.requestTimestamps = new ArrayBlockingQueue<>(MAX_REQUESTS_PER_MINUTE);
@@ -69,7 +74,7 @@ public class StockApiClient {
 
     public List<String> fetchUsStockSymbols() throws IOException {
         try {
-            String url = String.format(SYMBOL_URL_FORMAT, apiKey);
+            String url = String.format(SYMBOL_URL_FORMAT, finnhubApiKey);
             HttpResponse<String> response = sendRequest(url);
 
             if (response.statusCode() != 200) {
@@ -81,7 +86,10 @@ public class StockApiClient {
             if (rootNode.isArray()) {
                 for (JsonNode node : rootNode) {
                     if (node.has("symbol")) {
-                        symbols.add(node.get("symbol").asText());
+                        String exchange = node.has("exchange") ? node.get("exchange").asText() : "";
+                        if (exchange.isEmpty() || exchange.contains("NASDAQ") || exchange.contains("NEW YORK")) {
+                            symbols.add(node.get("symbol").asText());
+                        }
                     }
                 }
             }
@@ -113,15 +121,17 @@ public class StockApiClient {
         BigDecimal price = null;
         BigDecimal peRatio = null;
         BigDecimal marketCap = null;
-        BigDecimal revenue = null;
-        BigDecimal grossProfit = null;
         BigDecimal volume = null;
         Map<Integer, BigDecimal> historicalRevenue = new HashMap<>();
         Map<Integer, BigDecimal> historicalNetIncome = new HashMap<>();
+        Map<Integer, BigDecimal> historicalGrossProfit = new HashMap<>();
+        Map<String, BigDecimal> quarterlyRevenue = new HashMap<>();
+        Map<String, BigDecimal> quarterlyNetIncome = new HashMap<>();
+        Map<String, BigDecimal> quarterlyGrossProfit = new HashMap<>();
 
         try {
             // Fetch quote data
-            String quoteUrl = String.format(QUOTE_URL_FORMAT, symbol, apiKey);
+            String quoteUrl = String.format(QUOTE_URL_FORMAT, symbol, finnhubApiKey);
             HttpResponse<String> quoteResponse = sendRequest(quoteUrl);
             if (quoteResponse.statusCode() == 200) {
                 JsonNode quoteNode = objectMapper.readTree(quoteResponse.body());
@@ -131,7 +141,7 @@ public class StockApiClient {
             }
 
             // Fetch profile data
-            String profileUrl = String.format(PROFILE_URL_FORMAT, symbol, apiKey);
+            String profileUrl = String.format(PROFILE_URL_FORMAT, symbol, finnhubApiKey);
             HttpResponse<String> profileResponse = sendRequest(profileUrl);
             if (profileResponse.statusCode() == 200) {
                 JsonNode profileNode = objectMapper.readTree(profileResponse.body());
@@ -142,59 +152,52 @@ public class StockApiClient {
             }
 
             // Fetch metric data
-            String metricUrl = String.format(METRIC_URL_FORMAT, symbol, apiKey);
+            String metricUrl = String.format(FMP_KEY_METRICS_URL_FORMAT, symbol, fmpApiKey);
             HttpResponse<String> metricResponse = sendRequest(metricUrl);
             if (metricResponse.statusCode() == 200) {
                 JsonNode metricNode = objectMapper.readTree(metricResponse.body());
-                if (metricNode.has("metric") && metricNode.get("metric").has("peNormalizedAnnual")) {
-                    peRatio = toBigDecimal(metricNode.get("metric").get("peNormalizedAnnual"));
+                if (metricNode.isArray() && metricNode.size() > 0) {
+                    peRatio = toBigDecimal(metricNode.get(0).get("peRatioTTM"));
                 }
             } else {
                 logger.warn("Failed to fetch metric data for {}: Status {}", symbol, metricResponse.statusCode());
             }
 
             // Fetch financials data
-            String financialsUrl = String.format(FINANCIALS_URL_FORMAT, symbol, apiKey);
+            String financialsUrl = String.format(FMP_FINANCIALS_URL_FORMAT, symbol, fmpApiKey);
             HttpResponse<String> financialsResponse = sendRequest(financialsUrl);
             if (financialsResponse.statusCode() == 200) {
                 JsonNode financialsNode = objectMapper.readTree(financialsResponse.body());
-                if (financialsNode.has("data") && financialsNode.get("data").isArray()) {
-                    int yearsProcessed = 0;
-                    for (JsonNode annualReport : financialsNode.get("data")) {
-                        if (yearsProcessed >= 5) break;
-
-                        int year = annualReport.get("year").asInt();
-                        if (annualReport.has("report") && annualReport.get("report").has("ic")) {
-                            for (JsonNode item : annualReport.get("report").get("ic")) {
-                                String concept = item.get("concept").asText();
-                                if (concept.equals("us-gaap_RevenueFromContractWithCustomerExcludingAssessedTax") || concept.equals("ifrs-full_Revenue") || concept.equals("Revenues")) {
-                                    historicalRevenue.put(year, toBigDecimal(item.get("value")));
-                                }
-                                if (concept.equals("us-gaap_NetIncomeLoss") || concept.equals("ifrs-full_ProfitLoss")) {
-                                    historicalNetIncome.put(year, toBigDecimal(item.get("value")));
-                                }
-                            }
-                        }
-                        yearsProcessed++;
-                    }
-                    // Also get the most recent revenue and gross profit
-                    if (financialsNode.get("data").size() > 0) {
-                        JsonNode latestFinancials = financialsNode.get("data").get(0);
-                        if (latestFinancials.has("report") && latestFinancials.get("report").has("ic")) {
-                            for (JsonNode item : latestFinancials.get("report").get("ic")) {
-                                String concept = item.get("concept").asText();
-                                if (concept.equals("us-gaap_RevenueFromContractWithCustomerExcludingAssessedTax") || concept.equals("ifrs-full_Revenue") || concept.equals("Revenues")) {
-                                    revenue = toBigDecimal(item.get("value"));
-                                }
-                                if (concept.equals("us-gaap_GrossProfit")) {
-                                    grossProfit = toBigDecimal(item.get("value"));
-                                }
-                            }
-                        }
+                if (financialsNode.isArray()) {
+                    for (JsonNode annualReport : financialsNode) {
+                        int year = annualReport.get("calendarYear").asInt();
+                        historicalRevenue.put(year, toBigDecimal(annualReport.get("revenue")));
+                        historicalNetIncome.put(year, toBigDecimal(annualReport.get("netIncome")));
+                        historicalGrossProfit.put(year, toBigDecimal(annualReport.get("grossProfit")));
                     }
                 }
             } else {
                 logger.warn("Failed to fetch financials data for {}: Status {}", symbol, financialsResponse.statusCode());
+            }
+
+            // Fetch quarterly financials data
+            String quarterlyFinancialsUrl = String.format(ALPHA_VANTAGE_URL_FORMAT, symbol, alphaVantageApiKey);
+            HttpResponse<String> quarterlyFinancialsResponse = sendRequest(quarterlyFinancialsUrl);
+            if (quarterlyFinancialsResponse.statusCode() == 200) {
+                JsonNode quarterlyFinancialsNode = objectMapper.readTree(quarterlyFinancialsResponse.body());
+                if (quarterlyFinancialsNode.has("quarterlyReports") && quarterlyFinancialsNode.get("quarterlyReports").isArray()) {
+                    int quartersProcessed = 0;
+                    for (JsonNode quarterlyReport : quarterlyFinancialsNode.get("quarterlyReports")) {
+                        if (quartersProcessed >= 8) break;
+                        String quarter = quarterlyReport.get("fiscalDateEnding").asText();
+                        quarterlyRevenue.put(quarter, toBigDecimal(quarterlyReport.get("totalRevenue")));
+                        quarterlyNetIncome.put(quarter, toBigDecimal(quarterlyReport.get("netIncome")));
+                        quarterlyGrossProfit.put(quarter, toBigDecimal(quarterlyReport.get("grossProfit")));
+                        quartersProcessed++;
+                    }
+                }
+            } else {
+                logger.warn("Failed to fetch quarterly financials data for {}: Status {}", symbol, quarterlyFinancialsResponse.statusCode());
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -204,6 +207,6 @@ public class StockApiClient {
             logger.error("An unexpected error occurred while fetching data for {}", symbol, e);
         }
 
-        return new Stock(symbol, name, price, peRatio, marketCap, revenue, grossProfit, volume, exchange, historicalRevenue, historicalNetIncome);
+        return new Stock(symbol, name, price, peRatio, marketCap, volume, exchange, historicalRevenue, historicalNetIncome, historicalGrossProfit, quarterlyRevenue, quarterlyNetIncome, quarterlyGrossProfit);
     }
 }

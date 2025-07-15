@@ -39,8 +39,7 @@ public class StockAnalyzer {
                 }
             })
             .filter(Objects::nonNull)
-            .peek(data -> System.out.println("✓ " + data.getSymbol() + " - P/E: " + data.getPeRatio() +
-                ", Revenue: $" + formatBigNumber(data.getRevenue())))
+            .peek(data -> System.out.println("✓ " + data.getSymbol() + " - P/E: " + data.getPeRatio()))
             .collect(Collectors.toList());
     }
 
@@ -50,8 +49,7 @@ public class StockAnalyzer {
         if (stock == null) {
             throw new IOException("Could not fetch data for symbol: " + symbol);
         }
-        System.out.println("✓ " + stock.getSymbol() + " - P/E: " + stock.getPeRatio() +
-            ", Revenue: $" + formatBigNumber(stock.getRevenue()));
+        System.out.println("✓ " + stock.getSymbol() + " - P/E: " + stock.getPeRatio());
         return List.of(stock);
     }
 
@@ -68,4 +66,5 @@ public class StockAnalyzer {
             return number.toString();
         }
     }
-}
+
+    }

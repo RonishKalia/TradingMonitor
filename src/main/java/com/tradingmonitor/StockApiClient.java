@@ -21,7 +21,6 @@ public class StockApiClient {
 
     private static final Logger logger = LoggerFactory.getLogger(StockApiClient.class);
     private static final String BASE_URL = "https://finnhub.io/api/v1";
-    private static final String SYMBOL_URL_FORMAT = BASE_URL + "/stock/symbol?exchange=US&token=%s";
     private static final String QUOTE_URL_FORMAT = BASE_URL + "/quote?symbol=%s&token=%s";
     private static final String PROFILE_URL_FORMAT = BASE_URL + "/stock/profile2?symbol=%s&token=%s";
     private static final String FMP_SYMBOL_LIST_URL_FORMAT = "https://financialmodelingprep.com/api/v3/stock/list?apikey=%s";
@@ -208,6 +207,53 @@ public class StockApiClient {
             logger.error("An unexpected error occurred while fetching data for {}", symbol, e);
         }
 
-        return new Stock(symbol, name, price, peRatio, marketCap, volume, exchange, historicalRevenue, historicalNetIncome, historicalGrossProfit, quarterlyRevenue, quarterlyNetIncome, quarterlyGrossProfit);
+        Map<Integer, BigDecimal> historicalRevenueChange = calculateHistoricalPercentageChange(historicalRevenue);
+        Map<Integer, BigDecimal> historicalNetIncomeChange = calculateHistoricalPercentageChange(historicalNetIncome);
+        Map<Integer, BigDecimal> historicalGrossProfitChange = calculateHistoricalPercentageChange(historicalGrossProfit);
+        Map<String, BigDecimal> quarterlyRevenueChange = calculateQuarterlyPercentageChange(quarterlyRevenue);
+        Map<String, BigDecimal> quarterlyNetIncomeChange = calculateQuarterlyPercentageChange(quarterlyNetIncome);
+        Map<String, BigDecimal> quarterlyGrossProfitChange = calculateQuarterlyPercentageChange(quarterlyGrossProfit);
+
+        return new Stock(symbol, name, price, peRatio, marketCap, volume, exchange, historicalRevenue, historicalNetIncome, historicalGrossProfit, quarterlyRevenue, quarterlyNetIncome, quarterlyGrossProfit, historicalRevenueChange, historicalNetIncomeChange, historicalGrossProfitChange, quarterlyRevenueChange, quarterlyNetIncomeChange, quarterlyGrossProfitChange);
+    }
+
+    private Map<Integer, BigDecimal> calculateHistoricalPercentageChange(Map<Integer, BigDecimal> historicalData) {
+        Map<Integer, BigDecimal> percentageChanges = new HashMap<>();
+        List<Integer> sortedYears = new ArrayList<>(historicalData.keySet());
+        sortedYears.sort(Integer::compareTo);
+
+        for (int i = 1; i < sortedYears.size(); i++) {
+            Integer currentYear = sortedYears.get(i);
+            Integer previousYear = sortedYears.get(i - 1);
+            BigDecimal currentValue = historicalData.get(currentYear);
+            BigDecimal previousValue = historicalData.get(previousYear);
+
+            if (currentValue != null && previousValue != null && previousValue.compareTo(BigDecimal.ZERO) != 0) {
+                BigDecimal change = currentValue.subtract(previousValue);
+                BigDecimal percentageChange = change.divide(previousValue, 4, BigDecimal.ROUND_HALF_UP).multiply(new BigDecimal(100));
+                percentageChanges.put(currentYear, percentageChange);
+            }
+        }
+        return percentageChanges;
+    }
+
+    private Map<String, BigDecimal> calculateQuarterlyPercentageChange(Map<String, BigDecimal> quarterlyData) {
+        Map<String, BigDecimal> percentageChanges = new HashMap<>();
+        List<String> sortedQuarters = new ArrayList<>(quarterlyData.keySet());
+        sortedQuarters.sort(String::compareTo);
+
+        for (int i = 1; i < sortedQuarters.size(); i++) {
+            String currentQuarter = sortedQuarters.get(i);
+            String previousQuarter = sortedQuarters.get(i - 1);
+            BigDecimal currentValue = quarterlyData.get(currentQuarter);
+            BigDecimal previousValue = quarterlyData.get(previousQuarter);
+
+            if (currentValue != null && previousValue != null && previousValue.compareTo(BigDecimal.ZERO) != 0) {
+                BigDecimal change = currentValue.subtract(previousValue);
+                BigDecimal percentageChange = change.divide(previousValue, 4, BigDecimal.ROUND_HALF_UP).multiply(new BigDecimal(100));
+                percentageChanges.put(currentQuarter, percentageChange);
+            }
+        }
+        return percentageChanges;
     }
 }

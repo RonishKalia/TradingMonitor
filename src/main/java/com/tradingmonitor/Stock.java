@@ -17,13 +17,22 @@ public class Stock {
     private final Map<String, BigDecimal> quarterlyRevenue;
     private final Map<String, BigDecimal> quarterlyNetIncome;
     private final Map<String, BigDecimal> quarterlyGrossProfit;
+    private final Map<Integer, BigDecimal> historicalRevenueChange;
+    private final Map<Integer, BigDecimal> historicalNetIncomeChange;
+    private final Map<Integer, BigDecimal> historicalGrossProfitChange;
+    private final Map<String, BigDecimal> quarterlyRevenueChange;
+    private final Map<String, BigDecimal> quarterlyNetIncomeChange;
+    private final Map<String, BigDecimal> quarterlyGrossProfitChange;
 
     public Stock(String symbol, String name, BigDecimal price, BigDecimal peRatio,
                      BigDecimal marketCap,
                      BigDecimal volume, String exchange,
                      Map<Integer, BigDecimal> historicalRevenue, Map<Integer, BigDecimal> historicalNetIncome,
                      Map<Integer, BigDecimal> historicalGrossProfit, Map<String, BigDecimal> quarterlyRevenue,
-                     Map<String, BigDecimal> quarterlyNetIncome, Map<String, BigDecimal> quarterlyGrossProfit) {
+                     Map<String, BigDecimal> quarterlyNetIncome, Map<String, BigDecimal> quarterlyGrossProfit,
+                     Map<Integer, BigDecimal> historicalRevenueChange, Map<Integer, BigDecimal> historicalNetIncomeChange,
+                     Map<Integer, BigDecimal> historicalGrossProfitChange, Map<String, BigDecimal> quarterlyRevenueChange,
+                     Map<String, BigDecimal> quarterlyNetIncomeChange, Map<String, BigDecimal> quarterlyGrossProfitChange) {
         this.symbol = symbol;
         this.name = name;
         this.price = price;
@@ -37,6 +46,12 @@ public class Stock {
         this.quarterlyRevenue = quarterlyRevenue;
         this.quarterlyNetIncome = quarterlyNetIncome;
         this.quarterlyGrossProfit = quarterlyGrossProfit;
+        this.historicalRevenueChange = historicalRevenueChange;
+        this.historicalNetIncomeChange = historicalNetIncomeChange;
+        this.historicalGrossProfitChange = historicalGrossProfitChange;
+        this.quarterlyRevenueChange = quarterlyRevenueChange;
+        this.quarterlyNetIncomeChange = quarterlyNetIncomeChange;
+        this.quarterlyGrossProfitChange = quarterlyGrossProfitChange;
     }
 
     public String getSymbol() { return symbol; }
@@ -52,6 +67,12 @@ public class Stock {
     public Map<String, BigDecimal> getQuarterlyRevenue() { return quarterlyRevenue; }
     public Map<String, BigDecimal> getQuarterlyNetIncome() { return quarterlyNetIncome; }
     public Map<String, BigDecimal> getQuarterlyGrossProfit() { return quarterlyGrossProfit; }
+    public Map<Integer, BigDecimal> getHistoricalRevenueChange() { return historicalRevenueChange; }
+    public Map<Integer, BigDecimal> getHistoricalNetIncomeChange() { return historicalNetIncomeChange; }
+    public Map<Integer, BigDecimal> getHistoricalGrossProfitChange() { return historicalGrossProfitChange; }
+    public Map<String, BigDecimal> getQuarterlyRevenueChange() { return quarterlyRevenueChange; }
+    public Map<String, BigDecimal> getQuarterlyNetIncomeChange() { return quarterlyNetIncomeChange; }
+    public Map<String, BigDecimal> getQuarterlyGrossProfitChange() { return quarterlyGrossProfitChange; }
 
     public void printAllData(StockAnalyzer analyzer) {
         System.out.println(String.format("%-6s | %-20s | P/E: %-8s",
@@ -65,7 +86,9 @@ public class Stock {
             getHistoricalRevenue().entrySet().stream()
                 .sorted(Map.Entry.<Integer, BigDecimal>comparingByKey().reversed())
                 .forEach(entry -> {
-                    System.out.println(String.format("    %d: $%s", entry.getKey(), analyzer.formatBigNumber(entry.getValue())));
+                    BigDecimal change = getHistoricalRevenueChange().get(entry.getKey());
+                    String changeStr = (change != null) ? String.format(" (%+.2f%%)", change) : "";
+                    System.out.println(String.format("    %d: $%s%s", entry.getKey(), analyzer.formatBigNumber(entry.getValue()), changeStr));
                 });
         }
 
@@ -74,7 +97,9 @@ public class Stock {
             getHistoricalNetIncome().entrySet().stream()
                 .sorted(Map.Entry.<Integer, BigDecimal>comparingByKey().reversed())
                 .forEach(entry -> {
-                    System.out.println(String.format("    %d: $%s", entry.getKey(), analyzer.formatBigNumber(entry.getValue())));
+                    BigDecimal change = getHistoricalNetIncomeChange().get(entry.getKey());
+                    String changeStr = (change != null) ? String.format(" (%+.2f%%)", change) : "";
+                    System.out.println(String.format("    %d: $%s%s", entry.getKey(), analyzer.formatBigNumber(entry.getValue()), changeStr));
                 });
         }
 
@@ -83,7 +108,9 @@ public class Stock {
             getHistoricalGrossProfit().entrySet().stream()
                 .sorted(Map.Entry.<Integer, BigDecimal>comparingByKey().reversed())
                 .forEach(entry -> {
-                    System.out.println(String.format("    %d: $%s", entry.getKey(), analyzer.formatBigNumber(entry.getValue())));
+                    BigDecimal change = getHistoricalGrossProfitChange().get(entry.getKey());
+                    String changeStr = (change != null) ? String.format(" (%+.2f%%)", change) : "";
+                    System.out.println(String.format("    %d: $%s%s", entry.getKey(), analyzer.formatBigNumber(entry.getValue()), changeStr));
                 });
         }
 
@@ -92,7 +119,9 @@ public class Stock {
             getQuarterlyRevenue().entrySet().stream()
                 .sorted(Map.Entry.<String, BigDecimal>comparingByKey().reversed())
                 .forEach(entry -> {
-                    System.out.println(String.format("    %s: $%s", entry.getKey(), analyzer.formatBigNumber(entry.getValue())));
+                    BigDecimal change = getQuarterlyRevenueChange().get(entry.getKey());
+                    String changeStr = (change != null) ? String.format(" (%+.2f%%)", change) : "";
+                    System.out.println(String.format("    %s: $%s%s", entry.getKey(), analyzer.formatBigNumber(entry.getValue()), changeStr));
                 });
         }
 
@@ -101,7 +130,9 @@ public class Stock {
             getQuarterlyNetIncome().entrySet().stream()
                 .sorted(Map.Entry.<String, BigDecimal>comparingByKey().reversed())
                 .forEach(entry -> {
-                    System.out.println(String.format("    %s: $%s", entry.getKey(), analyzer.formatBigNumber(entry.getValue())));
+                    BigDecimal change = getQuarterlyNetIncomeChange().get(entry.getKey());
+                    String changeStr = (change != null) ? String.format(" (%+.2f%%)", change) : "";
+                    System.out.println(String.format("    %s: $%s%s", entry.getKey(), analyzer.formatBigNumber(entry.getValue()), changeStr));
                 });
         }
 
@@ -110,7 +141,9 @@ public class Stock {
             getQuarterlyGrossProfit().entrySet().stream()
                 .sorted(Map.Entry.<String, BigDecimal>comparingByKey().reversed())
                 .forEach(entry -> {
-                    System.out.println(String.format("    %s: $%s", entry.getKey(), analyzer.formatBigNumber(entry.getValue())));
+                    BigDecimal change = getQuarterlyGrossProfitChange().get(entry.getKey());
+                    String changeStr = (change != null) ? String.format(" (%+.2f%%)", change) : "";
+                    System.out.println(String.format("    %s: $%s%s", entry.getKey(), analyzer.formatBigNumber(entry.getValue()), changeStr));
                 });
         }
     }

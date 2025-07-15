@@ -3,56 +3,36 @@ package com.example;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.Arrays;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class StockAnalyzer {
 
-    private static final Map<String, List<String>> EXCHANGE_SYMBOLS = new HashMap<>();
-    
     private final StockApiClient stockApiClient;
-
-    static {
-        EXCHANGE_SYMBOLS.put("NYSE", Arrays.asList(
-            "JPM", "V", "JNJ", "WMT", "PG", "UNH", "HD", "BAC", "MA", "XOM",
-            "DIS", "KO", "PFE", "CVX", "PEP", "T", "MRK", "ABT", "MCD", "CSCO",
-            "DOW", "IBM", "NKE", "ORCL", "GE", "GS", "AXP", "BA", "CAT", "MMM",
-            "TRV", "WBA", "INTC", "VZ", "MSFT"
-        ));
-        EXCHANGE_SYMBOLS.put("NASDAQ", Arrays.asList(
-            "AAPL", "MSFT", "AMZN", "GOOGL", "GOOG", "META", "TSLA", "NVDA"
-        ));
-        EXCHANGE_SYMBOLS.put("SP500", Arrays.asList(
-            "AAPL", "MSFT", "AMZN", "GOOGL", "GOOG", "META", "TSLA", "NVDA", "JPM", "V",
-            "JNJ", "WMT", "PG", "UNH", "HD", "BAC", "MA", "XOM", "DIS", "KO",
-            "PFE", "CVX", "PEP", "T", "MRK", "ABT", "MCD"
-        ));
-    }
 
     public StockAnalyzer(StockApiClient stockApiClient) {
         this.stockApiClient = stockApiClient;
     }
 
-    public List<Stock> analyzeExchange(String exchange) {
-        List<String> symbols = EXCHANGE_SYMBOLS.get(exchange.toUpperCase());
-        if (symbols == null) {
-            throw new IllegalArgumentException("Exchange not supported: " + exchange +
-                ". Supported exchanges: " + getSupportedExchanges());
+    public List<Stock> analyzeUsStocks(boolean isTesting) throws IOException {
+        List<String> symbols = stockApiClient.fetchUsStockSymbols();
+        if (symbols == null || symbols.isEmpty()) {
+            throw new IOException("No symbols found for US stocks.");
         }
 
-        System.out.println("Analyzing " + symbols.size() + " stocks from " + exchange + "...");
+        if (isTesting) {
+            symbols = symbols.subList(0, Math.min(symbols.size(), 10));
+        }
 
-        return symbols.stream()
+        System.out.println("Analyzing " + symbols.size() + " US stocks...");
+
+        return symbols.parallelStream()
             .map(symbol -> {
                 try {
-                    return stockApiClient.fetchStockData(symbol, exchange);
+                    return stockApiClient.fetchStockData(symbol, "US");
                 } catch (IOException e) {
                     System.err.println("Error analyzing " + symbol + ": " + e.getMessage());
                     return null;
@@ -139,9 +119,5 @@ public class StockAnalyzer {
         } else {
             return number.toString();
         }
-    }
-
-    public Set<String> getSupportedExchanges() {
-        return EXCHANGE_SYMBOLS.keySet();
     }
 }

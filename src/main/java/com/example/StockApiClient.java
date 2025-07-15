@@ -8,6 +8,8 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import org.slf4j.Logger;
@@ -17,6 +19,7 @@ public class StockApiClient {
 
     private static final Logger logger = LoggerFactory.getLogger(StockApiClient.class);
     private static final String BASE_URL = "https://finnhub.io/api/v1";
+    private static final String SYMBOL_URL_FORMAT = BASE_URL + "/stock/symbol?exchange=US&token=%s";
     private static final String QUOTE_URL_FORMAT = BASE_URL + "/quote?symbol=%s&token=%s";
     private static final String PROFILE_URL_FORMAT = BASE_URL + "/stock/profile2?symbol=%s&token=%s";
     private static final String METRIC_URL_FORMAT = BASE_URL + "/stock/metric?symbol=%s&metric=all&token=%s";
@@ -62,6 +65,47 @@ public class StockApiClient {
         return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
     }
 
+    public List<String> fetchUsStockSymbols() throws IOException {
+        try {
+            String url = String.format(SYMBOL_URL_FORMAT, apiKey);
+            HttpResponse<String> response = sendRequest(url);
+
+            if (response.statusCode() != 200) {
+                throw new IOException("Failed to fetch stock symbols: " + response.statusCode());
+            }
+
+            JsonNode rootNode = objectMapper.readTree(response.body());
+            List<String> symbols = new ArrayList<>();
+            if (rootNode.isArray()) {
+                for (JsonNode node : rootNode) {
+                    if (node.has("symbol")) {
+                        symbols.add(node.get("symbol").asText());
+                    }
+                }
+            }
+            return symbols;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Failed to fetch stock symbols", e);
+        }
+    }
+
+    private BigDecimal toBigDecimal(JsonNode node) {
+        if (node == null || node.isNull()) {
+            return null;
+        }
+        String text = node.asText();
+        if (text.isEmpty() || text.equalsIgnoreCase("null")) {
+            return null;
+        }
+        try {
+            return new BigDecimal(text);
+        } catch (NumberFormatException e) {
+            logger.warn("Could not parse '{}' as BigDecimal", text);
+            return null;
+        }
+    }
+
     public Stock fetchStockData(String symbol, String exchange) throws IOException {
         try {
             String quoteUrl = String.format(QUOTE_URL_FORMAT, symbol, apiKey);
@@ -86,7 +130,7 @@ public class StockApiClient {
 
             BigDecimal peRatio = null;
             if (metricNode.has("metric") && metricNode.get("metric").has("peNormalizedAnnual")) {
-                peRatio = new BigDecimal(metricNode.get("metric").get("peNormalizedAnnual").asText());
+                peRatio = toBigDecimal(metricNode.get("metric").get("peNormalizedAnnual"));
             }
 
             BigDecimal revenue = null;
@@ -96,10 +140,10 @@ public class StockApiClient {
                 if (latestFinancials.has("report") && latestFinancials.get("report").has("ic") && latestFinancials.get("report").get("ic").isArray()) {
                     for (JsonNode item : latestFinancials.get("report").get("ic")) {
                         if (item.has("concept") && item.get("concept").asText().equals("us-gaap_RevenueFromContractWithCustomerExcludingAssessedTax")) {
-                            revenue = new BigDecimal(item.get("value").asText());
+                            revenue = toBigDecimal(item.get("value"));
                         }
                         if (item.has("concept") && item.get("concept").asText().equals("us-gaap_GrossProfit")) {
-                            grossProfit = new BigDecimal(item.get("value").asText());
+                            grossProfit = toBigDecimal(item.get("value"));
                         }
                     }
                 }
@@ -108,9 +152,9 @@ public class StockApiClient {
             return new Stock(
                 symbol,
                 profileNode.has("name") ? profileNode.get("name").asText() : null,
-                quoteNode.has("c") ? new BigDecimal(quoteNode.get("c").asText()) : null,
+                toBigDecimal(quoteNode.get("c")),
                 peRatio,
-                profileNode.has("marketCapitalization") ? new BigDecimal(profileNode.get("marketCapitalization").asText()) : null,
+                toBigDecimal(profileNode.get("marketCapitalization")),
                 revenue,
                 grossProfit,
                 null,

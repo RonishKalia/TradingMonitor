@@ -1,11 +1,12 @@
 package com.example;
 
+import java.io.IOException;
 import java.util.List;
 
 public class Main {
     public static final String GREETING = "Hello, World!";
     private static final String API_KEY = "d1rapopr01qk8n65sjs0d1rapopr01qk8n65sjsg";
-    private static final String EXCHANGE_TO_ANALYZE = "NYSE";
+    private static final boolean IS_TESTING_MODE = true;
 
     public static void main(String[] args) {
         Main main = new Main();
@@ -24,11 +25,13 @@ public class Main {
         StockAnalyzer analyzer = new StockAnalyzer(apiClient);
         
         System.out.println("\n=== TRADING MONITOR - STOCK ANALYSIS ===");
-        System.out.println("Supported exchanges: " + analyzer.getSupportedExchanges());
         
         try {
-            System.out.println("\nStarting analysis of " + EXCHANGE_TO_ANALYZE + " stocks...");
-            List<Stock> stockList = analyzer.analyzeExchange(EXCHANGE_TO_ANALYZE);
+            if (IS_TESTING_MODE) {
+                System.out.println("\n--- RUNNING IN TESTING MODE ---");
+            }
+            System.out.println("\nStarting analysis of US stocks...");
+            List<Stock> stockList = analyzer.analyzeUsStocks(IS_TESTING_MODE);
             
             // Print detailed analysis summary
             analyzer.printAnalysisSummary(stockList);
@@ -44,8 +47,8 @@ public class Main {
                 ));
             }
             
-        } catch (IllegalArgumentException e) {
-            System.err.println("Invalid exchange: " + e.getMessage());
+        } catch (IOException e) {
+            System.err.println("An error occurred during stock analysis: " + e.getMessage());
         }
     }
 }

@@ -6,8 +6,9 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
+import java.util.stream.IntStream;
 
 public class StockAnalyzerTest {
 
@@ -17,6 +18,13 @@ public class StockAnalyzerTest {
     class StockApiClientStub extends StockApiClient {
         public StockApiClientStub() {
             super("test-api-key");
+        }
+
+        @Override
+        public List<String> fetchUsStockSymbols() throws IOException {
+            List<String> symbols = new ArrayList<>();
+            IntStream.range(0, 20).forEach(i -> symbols.add("TEST" + i));
+            return symbols;
         }
 
         @Override
@@ -42,12 +50,17 @@ public class StockAnalyzerTest {
     }
 
     @Test
-    public void testGetSupportedExchanges() {
-        Set<String> exchanges = analyzer.getSupportedExchanges();
-        assertNotNull(exchanges);
-        assertTrue(exchanges.contains("NYSE"));
-        assertTrue(exchanges.contains("NASDAQ"));
-        assertTrue(exchanges.contains("SP500"));
+    public void testAnalyzeUsStocks_noTesting() throws IOException {
+        List<Stock> stocks = analyzer.analyzeUsStocks(false);
+        assertNotNull(stocks);
+        assertEquals(20, stocks.size());
+    }
+
+    @Test
+    public void testAnalyzeUsStocks_withTesting() throws IOException {
+        List<Stock> stocks = analyzer.analyzeUsStocks(true);
+        assertNotNull(stocks);
+        assertEquals(10, stocks.size());
     }
 
     @Test
@@ -57,11 +70,5 @@ public class StockAnalyzerTest {
         assertEquals("2.00B", analyzer.formatBigNumber(java.math.BigDecimal.valueOf(2000000000)));
         assertEquals("N/A", analyzer.formatBigNumber(null));
     }
-
-    @Test
-    public void testInvalidExchange() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            analyzer.analyzeExchange("INVALID_EXCHANGE");
-        });
-    }
-} 
+}
+ 

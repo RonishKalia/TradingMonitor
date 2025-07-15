@@ -107,62 +107,77 @@ public class StockApiClient {
     }
 
     public Stock fetchStockData(String symbol, String exchange) throws IOException {
+        String name = null;
+        BigDecimal price = null;
+        BigDecimal peRatio = null;
+        BigDecimal marketCap = null;
+        BigDecimal revenue = null;
+        BigDecimal grossProfit = null;
+        BigDecimal volume = null;
+
         try {
+            // Fetch quote data
             String quoteUrl = String.format(QUOTE_URL_FORMAT, symbol, apiKey);
-            String profileUrl = String.format(PROFILE_URL_FORMAT, symbol, apiKey);
-            String metricUrl = String.format(METRIC_URL_FORMAT, symbol, apiKey);
-            String financialsUrl = String.format(FINANCIALS_URL_FORMAT, symbol, apiKey);
-
             HttpResponse<String> quoteResponse = sendRequest(quoteUrl);
+            if (quoteResponse.statusCode() == 200) {
+                JsonNode quoteNode = objectMapper.readTree(quoteResponse.body());
+                price = toBigDecimal(quoteNode.get("c"));
+            } else {
+                logger.warn("Failed to fetch quote data for {}: Status {}", symbol, quoteResponse.statusCode());
+            }
+
+            // Fetch profile data
+            String profileUrl = String.format(PROFILE_URL_FORMAT, symbol, apiKey);
             HttpResponse<String> profileResponse = sendRequest(profileUrl);
+            if (profileResponse.statusCode() == 200) {
+                JsonNode profileNode = objectMapper.readTree(profileResponse.body());
+                name = profileNode.has("name") ? profileNode.get("name").asText() : null;
+                marketCap = toBigDecimal(profileNode.get("marketCapitalization"));
+            } else {
+                logger.warn("Failed to fetch profile data for {}: Status {}", symbol, profileResponse.statusCode());
+            }
+
+            // Fetch metric data
+            String metricUrl = String.format(METRIC_URL_FORMAT, symbol, apiKey);
             HttpResponse<String> metricResponse = sendRequest(metricUrl);
+            if (metricResponse.statusCode() == 200) {
+                JsonNode metricNode = objectMapper.readTree(metricResponse.body());
+                if (metricNode.has("metric") && metricNode.get("metric").has("peNormalizedAnnual")) {
+                    peRatio = toBigDecimal(metricNode.get("metric").get("peNormalizedAnnual"));
+                }
+            } else {
+                logger.warn("Failed to fetch metric data for {}: Status {}", symbol, metricResponse.statusCode());
+            }
+
+            // Fetch financials data
+            String financialsUrl = String.format(FINANCIALS_URL_FORMAT, symbol, apiKey);
             HttpResponse<String> financialsResponse = sendRequest(financialsUrl);
-
-            if (quoteResponse.statusCode() != 200 || profileResponse.statusCode() != 200 || metricResponse.statusCode() != 200 || financialsResponse.statusCode() != 200) {
-                logger.error("Failed to fetch data for symbol: {}. Quote status: {}, Profile status: {}, Metric status: {}, Financials status: {}", symbol, quoteResponse.statusCode(), profileResponse.statusCode(), metricResponse.statusCode(), financialsResponse.statusCode());
-                throw new IOException("Failed to fetch data for symbol: " + symbol);
-            }
-
-            JsonNode quoteNode = objectMapper.readTree(quoteResponse.body());
-            JsonNode profileNode = objectMapper.readTree(profileResponse.body());
-            JsonNode metricNode = objectMapper.readTree(metricResponse.body());
-            JsonNode financialsNode = objectMapper.readTree(financialsResponse.body());
-
-            BigDecimal peRatio = null;
-            if (metricNode.has("metric") && metricNode.get("metric").has("peNormalizedAnnual")) {
-                peRatio = toBigDecimal(metricNode.get("metric").get("peNormalizedAnnual"));
-            }
-
-            BigDecimal revenue = null;
-            BigDecimal grossProfit = null;
-            if (financialsNode.has("data") && financialsNode.get("data").isArray() && financialsNode.get("data").size() > 0) {
-                JsonNode latestFinancials = financialsNode.get("data").get(0);
-                if (latestFinancials.has("report") && latestFinancials.get("report").has("ic") && latestFinancials.get("report").get("ic").isArray()) {
-                    for (JsonNode item : latestFinancials.get("report").get("ic")) {
-                        if (item.has("concept") && item.get("concept").asText().equals("us-gaap_RevenueFromContractWithCustomerExcludingAssessedTax")) {
-                            revenue = toBigDecimal(item.get("value"));
-                        }
-                        if (item.has("concept") && item.get("concept").asText().equals("us-gaap_GrossProfit")) {
-                            grossProfit = toBigDecimal(item.get("value"));
+            if (financialsResponse.statusCode() == 200) {
+                JsonNode financialsNode = objectMapper.readTree(financialsResponse.body());
+                if (financialsNode.has("data") && financialsNode.get("data").isArray() && financialsNode.get("data").size() > 0) {
+                    JsonNode latestFinancials = financialsNode.get("data").get(0);
+                    if (latestFinancials.has("report") && latestFinancials.get("report").has("ic") && latestFinancials.get("report").get("ic").isArray()) {
+                        for (JsonNode item : latestFinancials.get("report").get("ic")) {
+                            if (item.has("concept") && item.get("concept").asText().equals("us-gaap_RevenueFromContractWithCustomerExcludingAssessedTax")) {
+                                revenue = toBigDecimal(item.get("value"));
+                            }
+                            if (item.has("concept") && item.get("concept").asText().equals("us-gaap_GrossProfit")) {
+                                grossProfit = toBigDecimal(item.get("value"));
+                            }
                         }
                     }
                 }
+            } else {
+                logger.warn("Failed to fetch financials data for {}: Status {}", symbol, financialsResponse.statusCode());
             }
-
-            return new Stock(
-                symbol,
-                profileNode.has("name") ? profileNode.get("name").asText() : null,
-                toBigDecimal(quoteNode.get("c")),
-                peRatio,
-                toBigDecimal(profileNode.get("marketCapitalization")),
-                revenue,
-                grossProfit,
-                null,
-                exchange
-            );
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            logger.error("Interrupted while fetching data for {}", symbol, e);
+            throw new IOException("Interrupted while fetching data for " + symbol, e);
         } catch (Exception e) {
-            logger.error("Failed to fetch data for symbol: " + symbol, e);
-            throw new IOException("Failed to fetch data for symbol: " + symbol, e);
+            logger.error("An unexpected error occurred while fetching data for {}", symbol, e);
         }
+
+        return new Stock(symbol, name, price, peRatio, marketCap, revenue, grossProfit, volume, exchange);
     }
 }

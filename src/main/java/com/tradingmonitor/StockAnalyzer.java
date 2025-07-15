@@ -44,6 +44,17 @@ public class StockAnalyzer {
             .collect(Collectors.toList());
     }
 
+    public List<Stock> analyzeSingleStock(String symbol) throws IOException {
+        System.out.println("Analyzing single stock: " + symbol);
+        Stock stock = stockApiClient.fetchStockData(symbol, "US");
+        if (stock == null) {
+            throw new IOException("Could not fetch data for symbol: " + symbol);
+        }
+        System.out.println("✓ " + stock.getSymbol() + " - P/E: " + stock.getPeRatio() +
+            ", Revenue: $" + formatBigNumber(stock.getRevenue()));
+        return List.of(stock);
+    }
+
     public void printAnalysisSummary(List<Stock> stockDataList) {
         if (stockDataList.isEmpty()) {
             System.out.println("No stock data available for analysis.");

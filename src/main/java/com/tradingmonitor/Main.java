@@ -7,6 +7,8 @@ public class Main {
     public static final String GREETING = "Hello, World!";
     private static final String API_KEY = "d1rapopr01qk8n65sjs0d1rapopr01qk8n65sjsg";
     private static final boolean IS_TESTING_MODE = true;
+    private static final boolean IS_SINGLE_STOCK_TEST_MODE = true;
+    private static final String SINGLE_STOCK_SYMBOL = "MPGPF";
 
     public static void main(String[] args) {
         Main main = new Main();
@@ -27,18 +29,20 @@ public class Main {
         System.out.println("\n=== TRADING MONITOR - STOCK ANALYSIS ===");
         
         try {
-            if (IS_TESTING_MODE) {
-                System.out.println("\n--- RUNNING IN TESTING MODE ---");
+            if (IS_SINGLE_STOCK_TEST_MODE) {
+                System.out.println("\n--- RUNNING IN SINGLE STOCK TESTING MODE ---");
+                List<Stock> stockList = analyzer.analyzeSingleStock(SINGLE_STOCK_SYMBOL);
+                printStockDetails(stockList, analyzer);
+            } else {
+                if (IS_TESTING_MODE) {
+                    System.out.println("\n--- RUNNING IN TESTING MODE ---");
+                }
+                System.out.println("\nStarting analysis of US stocks...");
+                List<Stock> stockList = analyzer.analyzeUsStocks(IS_TESTING_MODE);
+                
+                // Print individual stock details
+                printStockDetails(stockList, analyzer);
             }
-            System.out.println("\nStarting analysis of US stocks...");
-            List<Stock> stockList = analyzer.analyzeUsStocks(IS_TESTING_MODE);
-            
-            // Print detailed analysis summary
-            analyzer.printAnalysisSummary(stockList);
-            
-            // Print individual stock details
-            printStockDetails(stockList, analyzer);
-            
         } catch (IOException e) {
             System.err.println("An error occurred during stock analysis: " + e.getMessage());
         }

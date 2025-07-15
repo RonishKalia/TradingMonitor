@@ -24,6 +24,7 @@ public class StockApiClient {
     private static final String SYMBOL_URL_FORMAT = BASE_URL + "/stock/symbol?exchange=US&token=%s";
     private static final String QUOTE_URL_FORMAT = BASE_URL + "/quote?symbol=%s&token=%s";
     private static final String PROFILE_URL_FORMAT = BASE_URL + "/stock/profile2?symbol=%s&token=%s";
+    private static final String FMP_SYMBOL_LIST_URL_FORMAT = "https://financialmodelingprep.com/api/v3/stock/list?apikey=%s";
     private static final String FMP_KEY_METRICS_URL_FORMAT = "https://financialmodelingprep.com/api/v3/key-metrics-ttm/%s?apikey=%s";
     private static final String FMP_FINANCIALS_URL_FORMAT = "https://financialmodelingprep.com/api/v3/income-statement/%s?limit=5&apikey=%s";
     private static final String ALPHA_VANTAGE_URL_FORMAT = "https://www.alphavantage.co/query?function=INCOME_STATEMENT&symbol=%s&apikey=%s";
@@ -74,20 +75,20 @@ public class StockApiClient {
 
     public List<String> fetchUsStockSymbols() throws IOException {
         try {
-            String url = String.format(SYMBOL_URL_FORMAT, finnhubApiKey);
+            String url = String.format(FMP_SYMBOL_LIST_URL_FORMAT, fmpApiKey);
             HttpResponse<String> response = sendRequest(url);
 
             if (response.statusCode() != 200) {
-                throw new IOException("Failed to fetch stock symbols: " + response.statusCode());
+                throw new IOException("Failed to fetch stock symbols from FMP: " + response.statusCode() + " " + response.body());
             }
 
             JsonNode rootNode = objectMapper.readTree(response.body());
             List<String> symbols = new ArrayList<>();
             if (rootNode.isArray()) {
                 for (JsonNode node : rootNode) {
-                    if (node.has("symbol")) {
-                        String exchange = node.has("exchange") ? node.get("exchange").asText() : "";
-                        if (exchange.isEmpty() || exchange.contains("NASDAQ") || exchange.contains("NEW YORK")) {
+                    if (node.has("symbol") && node.has("exchange")) {
+                        String exchange = node.get("exchange").asText();
+                        if (exchange.contains("New York Stock Exchange") || exchange.contains("Nasdaq")) {
                             symbols.add(node.get("symbol").asText());
                         }
                     }

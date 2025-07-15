@@ -1,4 +1,4 @@
-package com.example;
+package com.tradingmonitor;
 
 import java.io.IOException;
 import java.util.List;
@@ -37,18 +37,22 @@ public class Main {
             analyzer.printAnalysisSummary(stockList);
             
             // Print individual stock details
-            System.out.println("\n=== DETAILED STOCK DATA ===");
-            for (Stock stock : stockList) {
-                System.out.println(String.format("%-6s | %-20s | P/E: %-8s | Revenue: %-12s",
-                    stock.getSymbol(),
-                    stock.getName() != null ? stock.getName().substring(0, Math.min(20, stock.getName().length())) : "N/A",
-                    stock.getPeRatio() != null ? stock.getPeRatio().toString() : "N/A",
-                    stock.getRevenue() != null ? "$" + analyzer.formatBigNumber(stock.getRevenue()) : "N/A"
-                ));
-            }
+            printStockDetails(stockList, analyzer);
             
         } catch (IOException e) {
             System.err.println("An error occurred during stock analysis: " + e.getMessage());
+        }
+    }
+
+    private void printStockDetails(List<Stock> stockList, StockAnalyzer analyzer) {
+        System.out.println("\n=== DETAILED STOCK DATA ===");
+        for (Stock stock : stockList) {
+            System.out.println(String.format("%-6s | %-20s | P/E: %-8s | Revenue: %-12s",
+                stock.getSymbol(),
+                stock.getName() != null ? stock.getName().substring(0, Math.min(20, stock.getName().length())) : "N/A",
+                stock.getPeRatio() != null ? stock.getPeRatio().toString() : "N/A",
+                stock.getRevenue() != null ? "$" + analyzer.formatBigNumber(stock.getRevenue()) : "N/A"
+            ));
         }
     }
 }

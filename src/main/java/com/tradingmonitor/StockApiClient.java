@@ -1,4 +1,4 @@
-package com.example;
+package com.tradingmonitor;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

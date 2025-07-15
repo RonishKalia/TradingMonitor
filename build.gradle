@@ -4,7 +4,7 @@ plugins {
     id 'org.jetbrains.kotlin.jvm' version '1.9.22'
 }
 
-group = 'com.example'
+group = 'com.tradingmonitor'
 version = '1.0-SNAPSHOT'
 
 repositories {
@@ -30,7 +30,7 @@ dependencies {
 }
 
 application {
-    mainClass = 'com.example.Main'
+    mainClass = 'com.tradingmonitor.Main'
 }
 
 tasks.named('test') {

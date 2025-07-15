@@ -1,4 +1,4 @@
-package com.example;
+package com.tradingmonitor;
 
 import java.math.BigDecimal;
 

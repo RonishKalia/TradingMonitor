@@ -8,38 +8,71 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class StockApiClient {
 
     private static final Logger logger = LoggerFactory.getLogger(StockApiClient.class);
+    private static final String BASE_URL = "https://finnhub.io/api/v1";
+    private static final String QUOTE_URL_FORMAT = BASE_URL + "/quote?symbol=%s&token=%s";
+    private static final String PROFILE_URL_FORMAT = BASE_URL + "/stock/profile2?symbol=%s&token=%s";
+    private static final String METRIC_URL_FORMAT = BASE_URL + "/stock/metric?symbol=%s&metric=all&token=%s";
+    private static final String FINANCIALS_URL_FORMAT = BASE_URL + "/stock/financials-reported?symbol=%s&freq=annual&token=%s";
+    private static final int MAX_REQUESTS_PER_MINUTE = 60;
+    private static final long TIME_WINDOW_MS = 65 * 1000; // 65 seconds
+
     private final String apiKey;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
+    private final BlockingQueue<Long> requestTimestamps;
 
     public StockApiClient(String apiKey) {
         this.apiKey = apiKey;
         this.httpClient = HttpClient.newHttpClient();
         this.objectMapper = new ObjectMapper();
+        this.requestTimestamps = new ArrayBlockingQueue<>(MAX_REQUESTS_PER_MINUTE);
+    }
+
+    private void rateLimit() throws InterruptedException {
+        long currentTime = System.currentTimeMillis();
+
+        // If the queue is full, we must wait.
+        if (requestTimestamps.size() >= MAX_REQUESTS_PER_MINUTE) {
+            long oldestTimestamp = requestTimestamps.peek(); // Time of the first request in the window
+            long elapsedTime = currentTime - oldestTimestamp;
+
+            if (elapsedTime < TIME_WINDOW_MS) {
+                long waitTime = TIME_WINDOW_MS - elapsedTime;
+                logger.warn("Rate limit reached. Waiting for {} ms to respect the 65-second window.", waitTime);
+                Thread.sleep(waitTime);
+            }
+            // After waiting, the time window for the oldest request has passed. Remove it to make space.
+            requestTimestamps.poll();
+        }
+        // Add the timestamp for the new request.
+        requestTimestamps.offer(System.currentTimeMillis());
+    }
+
+    private HttpResponse<String> sendRequest(String url) throws IOException, InterruptedException {
+        rateLimit();
+        HttpRequest request = HttpRequest.newBuilder().uri(URI.create(url)).build();
+        return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
     }
 
     public Stock fetchStockData(String symbol, String exchange) throws IOException {
         try {
-            String quoteUrl = String.format("https://finnhub.io/api/v1/quote?symbol=%s&token=%s", symbol, apiKey);
-            String profileUrl = String.format("https://finnhub.io/api/v1/stock/profile2?symbol=%s&token=%s", symbol, apiKey);
-            String metricUrl = String.format("https://finnhub.io/api/v1/stock/metric?symbol=%s&metric=all&token=%s", symbol, apiKey);
-            String financialsUrl = String.format("https://finnhub.io/api/v1/stock/financials-reported?symbol=%s&freq=annual&token=%s", symbol, apiKey);
+            String quoteUrl = String.format(QUOTE_URL_FORMAT, symbol, apiKey);
+            String profileUrl = String.format(PROFILE_URL_FORMAT, symbol, apiKey);
+            String metricUrl = String.format(METRIC_URL_FORMAT, symbol, apiKey);
+            String financialsUrl = String.format(FINANCIALS_URL_FORMAT, symbol, apiKey);
 
-            HttpRequest quoteRequest = HttpRequest.newBuilder().uri(URI.create(quoteUrl)).build();
-            HttpRequest profileRequest = HttpRequest.newBuilder().uri(URI.create(profileUrl)).build();
-            HttpRequest metricRequest = HttpRequest.newBuilder().uri(URI.create(metricUrl)).build();
-            HttpRequest financialsRequest = HttpRequest.newBuilder().uri(URI.create(financialsUrl)).build();
-
-            HttpResponse<String> quoteResponse = httpClient.send(quoteRequest, HttpResponse.BodyHandlers.ofString());
-            HttpResponse<String> profileResponse = httpClient.send(profileRequest, HttpResponse.BodyHandlers.ofString());
-            HttpResponse<String> metricResponse = httpClient.send(metricRequest, HttpResponse.BodyHandlers.ofString());
-            HttpResponse<String> financialsResponse = httpClient.send(financialsRequest, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> quoteResponse = sendRequest(quoteUrl);
+            HttpResponse<String> profileResponse = sendRequest(profileUrl);
+            HttpResponse<String> metricResponse = sendRequest(metricUrl);
+            HttpResponse<String> financialsResponse = sendRequest(financialsUrl);
 
             if (quoteResponse.statusCode() != 200 || profileResponse.statusCode() != 200 || metricResponse.statusCode() != 200 || financialsResponse.statusCode() != 200) {
                 logger.error("Failed to fetch data for symbol: {}. Quote status: {}, Profile status: {}, Metric status: {}, Financials status: {}", symbol, quoteResponse.statusCode(), profileResponse.statusCode(), metricResponse.statusCode(), financialsResponse.statusCode());

@@ -16,8 +16,7 @@ import java.util.stream.Collectors;
 public class StockAnalyzer {
 
     private static final Map<String, List<String>> EXCHANGE_SYMBOLS = new HashMap<>();
-    private static final int API_REQUEST_DELAY_MS = 2000;
-
+    
     private final StockApiClient stockApiClient;
 
     static {
@@ -53,10 +52,8 @@ public class StockAnalyzer {
         return symbols.stream()
             .map(symbol -> {
                 try {
-                    // Respect API rate limits
-                    Thread.sleep(API_REQUEST_DELAY_MS);
                     return stockApiClient.fetchStockData(symbol, exchange);
-                } catch (IOException | InterruptedException e) {
+                } catch (IOException e) {
                     System.err.println("Error analyzing " + symbol + ": " + e.getMessage());
                     return null;
                 }

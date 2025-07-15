@@ -4,6 +4,8 @@ import java.util.List;
 
 public class Main {
     public static final String GREETING = "Hello, World!";
+    private static final String API_KEY = "d1rapopr01qk8n65sjs0d1rapopr01qk8n65sjsg";
+    private static final String EXCHANGE_TO_ANALYZE = "NYSE";
 
     public static void main(String[] args) {
         Main main = new Main();
@@ -18,25 +20,15 @@ public class Main {
     }
     
     public void runStockAnalysis() {
-        String apiKey = System.getenv("FINNHUB_API_KEY");
-        if (apiKey == null || apiKey.trim().isEmpty()) {
-            System.err.println("Error: FINNHUB_API_KEY environment variable not set.");
-            System.err.println("Please set the environment variable to your Finnhub API key.");
-            return;
-        }
-
-        StockApiClient apiClient = new StockApiClient(apiKey);
+        StockApiClient apiClient = new StockApiClient(API_KEY);
         StockAnalyzer analyzer = new StockAnalyzer(apiClient);
         
         System.out.println("\n=== TRADING MONITOR - STOCK ANALYSIS ===");
         System.out.println("Supported exchanges: " + analyzer.getSupportedExchanges());
         
-        // Analyze NASDAQ stocks (you can change this to NYSE, SP500, etc.)
-        String exchangeToAnalyze = "NASDAQ";
-        
         try {
-            System.out.println("\nStarting analysis of " + exchangeToAnalyze + " stocks...");
-            List<Stock> stockList = analyzer.analyzeExchange(exchangeToAnalyze);
+            System.out.println("\nStarting analysis of " + EXCHANGE_TO_ANALYZE + " stocks...");
+            List<Stock> stockList = analyzer.analyzeExchange(EXCHANGE_TO_ANALYZE);
             
             // Print detailed analysis summary
             analyzer.printAnalysisSummary(stockList);
@@ -57,3 +49,4 @@ public class Main {
         }
     }
 }
+

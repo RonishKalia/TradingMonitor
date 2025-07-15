@@ -4,6 +4,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Set;
 
@@ -11,9 +13,28 @@ public class StockAnalyzerTest {
 
     private StockAnalyzer analyzer;
 
+    // Stub for StockApiClient for testing purposes
+    class StockApiClientStub extends StockApiClient {
+        @Override
+        public Stock fetchStockData(String symbol, String exchange) throws IOException {
+            // Return some mock data for testing
+            return new Stock(
+                symbol,
+                "Mock Stock",
+                BigDecimal.valueOf(100.0),
+                BigDecimal.valueOf(20.0),
+                BigDecimal.valueOf(1000000000),
+                BigDecimal.valueOf(50000000),
+                BigDecimal.valueOf(20000000),
+                BigDecimal.valueOf(1000000),
+                exchange
+            );
+        }
+    }
+
     @BeforeEach
     public void setUp() {
-        analyzer = new StockAnalyzer();
+        analyzer = new StockAnalyzer(new StockApiClientStub());
     }
 
     @Test
@@ -38,24 +59,5 @@ public class StockAnalyzerTest {
         assertThrows(IllegalArgumentException.class, () -> {
             analyzer.analyzeExchange("INVALID_EXCHANGE");
         });
-    }
-
-    @Test
-    public void testStockDataCreation() {
-        StockAnalyzer.StockData stockData = new StockAnalyzer.StockData(
-            "AAPL", "Apple Inc.", 
-            java.math.BigDecimal.valueOf(150.0),
-            java.math.BigDecimal.valueOf(25.5),
-            java.math.BigDecimal.valueOf(2500000000000L),
-            java.math.BigDecimal.valueOf(394328000000L),
-            java.math.BigDecimal.valueOf(170782000000L),
-            java.math.BigDecimal.valueOf(1000000),
-            "NASDAQ"
-        );
-
-        assertEquals("AAPL", stockData.getSymbol());
-        assertEquals("Apple Inc.", stockData.getName());
-        assertEquals(java.math.BigDecimal.valueOf(25.5), stockData.getPeRatio());
-        assertEquals("NASDAQ", stockData.getExchange());
     }
 } 

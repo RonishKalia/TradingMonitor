@@ -1,6 +1,5 @@
 package com.example;
 
-import java.io.IOException;
 import java.util.List;
 
 public class Main {
@@ -19,7 +18,8 @@ public class Main {
     }
     
     public void runStockAnalysis() {
-        StockAnalyzer analyzer = new StockAnalyzer();
+        StockApiClient apiClient = new StockApiClient();
+        StockAnalyzer analyzer = new StockAnalyzer(apiClient);
         
         System.out.println("\n=== TRADING MONITOR - STOCK ANALYSIS ===");
         System.out.println("Supported exchanges: " + analyzer.getSupportedExchanges());
@@ -29,14 +29,14 @@ public class Main {
         
         try {
             System.out.println("\nStarting analysis of " + exchangeToAnalyze + " stocks...");
-            List<StockAnalyzer.StockData> stockDataList = analyzer.analyzeExchange(exchangeToAnalyze);
+            List<Stock> stockList = analyzer.analyzeExchange(exchangeToAnalyze);
             
             // Print detailed analysis summary
-            analyzer.printAnalysisSummary(stockDataList);
+            analyzer.printAnalysisSummary(stockList);
             
             // Print individual stock details
             System.out.println("\n=== DETAILED STOCK DATA ===");
-            for (StockAnalyzer.StockData stock : stockDataList) {
+            for (Stock stock : stockList) {
                 System.out.println(String.format("%-6s | %-20s | P/E: %-8s | Revenue: %-12s",
                     stock.getSymbol(),
                     stock.getName() != null ? stock.getName().substring(0, Math.min(20, stock.getName().length())) : "N/A",

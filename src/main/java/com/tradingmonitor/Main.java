@@ -1,14 +1,16 @@
 package com.tradingmonitor;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 public class Main {
     public static final String GREETING = "Hello, World!";
     private static final String API_KEY = "d1rapopr01qk8n65sjs0d1rapopr01qk8n65sjsg";
     private static final boolean IS_TESTING_MODE = true;
     private static final boolean IS_SINGLE_STOCK_TEST_MODE = true;
-    private static final String SINGLE_STOCK_SYMBOL = "MPGPF";
+    private static final String SINGLE_STOCK_SYMBOL = "GOOG";
 
     public static void main(String[] args) {
         Main main = new Main();
@@ -57,6 +59,24 @@ public class Main {
                 stock.getPeRatio() != null ? stock.getPeRatio().toString() : "N/A",
                 stock.getRevenue() != null ? "$" + analyzer.formatBigNumber(stock.getRevenue()) : "N/A"
             ));
+
+            if (stock.getHistoricalRevenue() != null && !stock.getHistoricalRevenue().isEmpty()) {
+                System.out.println("  Historical Revenue:");
+                stock.getHistoricalRevenue().entrySet().stream()
+                    .sorted(Map.Entry.<Integer, BigDecimal>comparingByKey().reversed())
+                    .forEach(entry -> {
+                        System.out.println(String.format("    %d: $%s", entry.getKey(), analyzer.formatBigNumber(entry.getValue())));
+                    });
+            }
+
+            if (stock.getHistoricalNetIncome() != null && !stock.getHistoricalNetIncome().isEmpty()) {
+                System.out.println("  Historical Net Income:");
+                stock.getHistoricalNetIncome().entrySet().stream()
+                    .sorted(Map.Entry.<Integer, BigDecimal>comparingByKey().reversed())
+                    .forEach(entry -> {
+                        System.out.println(String.format("    %d: $%s", entry.getKey(), analyzer.formatBigNumber(entry.getValue())));
+                    });
+            }
         }
     }
 }

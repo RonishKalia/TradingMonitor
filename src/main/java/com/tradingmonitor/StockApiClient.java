@@ -9,7 +9,9 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import org.slf4j.Logger;
@@ -114,6 +116,8 @@ public class StockApiClient {
         BigDecimal revenue = null;
         BigDecimal grossProfit = null;
         BigDecimal volume = null;
+        Map<Integer, BigDecimal> historicalRevenue = new HashMap<>();
+        Map<Integer, BigDecimal> historicalNetIncome = new HashMap<>();
 
         try {
             // Fetch quote data
@@ -154,15 +158,37 @@ public class StockApiClient {
             HttpResponse<String> financialsResponse = sendRequest(financialsUrl);
             if (financialsResponse.statusCode() == 200) {
                 JsonNode financialsNode = objectMapper.readTree(financialsResponse.body());
-                if (financialsNode.has("data") && financialsNode.get("data").isArray() && financialsNode.get("data").size() > 0) {
-                    JsonNode latestFinancials = financialsNode.get("data").get(0);
-                    if (latestFinancials.has("report") && latestFinancials.get("report").has("ic") && latestFinancials.get("report").get("ic").isArray()) {
-                        for (JsonNode item : latestFinancials.get("report").get("ic")) {
-                            if (item.has("concept") && item.get("concept").asText().equals("us-gaap_RevenueFromContractWithCustomerExcludingAssessedTax")) {
-                                revenue = toBigDecimal(item.get("value"));
+                if (financialsNode.has("data") && financialsNode.get("data").isArray()) {
+                    int yearsProcessed = 0;
+                    for (JsonNode annualReport : financialsNode.get("data")) {
+                        if (yearsProcessed >= 5) break;
+
+                        int year = annualReport.get("year").asInt();
+                        if (annualReport.has("report") && annualReport.get("report").has("ic")) {
+                            for (JsonNode item : annualReport.get("report").get("ic")) {
+                                String concept = item.get("concept").asText();
+                                if (concept.equals("us-gaap_RevenueFromContractWithCustomerExcludingAssessedTax") || concept.equals("ifrs-full_Revenue") || concept.equals("Revenues")) {
+                                    historicalRevenue.put(year, toBigDecimal(item.get("value")));
+                                }
+                                if (concept.equals("us-gaap_NetIncomeLoss") || concept.equals("ifrs-full_ProfitLoss")) {
+                                    historicalNetIncome.put(year, toBigDecimal(item.get("value")));
+                                }
                             }
-                            if (item.has("concept") && item.get("concept").asText().equals("us-gaap_GrossProfit")) {
-                                grossProfit = toBigDecimal(item.get("value"));
+                        }
+                        yearsProcessed++;
+                    }
+                    // Also get the most recent revenue and gross profit
+                    if (financialsNode.get("data").size() > 0) {
+                        JsonNode latestFinancials = financialsNode.get("data").get(0);
+                        if (latestFinancials.has("report") && latestFinancials.get("report").has("ic")) {
+                            for (JsonNode item : latestFinancials.get("report").get("ic")) {
+                                String concept = item.get("concept").asText();
+                                if (concept.equals("us-gaap_RevenueFromContractWithCustomerExcludingAssessedTax") || concept.equals("ifrs-full_Revenue") || concept.equals("Revenues")) {
+                                    revenue = toBigDecimal(item.get("value"));
+                                }
+                                if (concept.equals("us-gaap_GrossProfit")) {
+                                    grossProfit = toBigDecimal(item.get("value"));
+                                }
                             }
                         }
                     }
@@ -178,6 +204,6 @@ public class StockApiClient {
             logger.error("An unexpected error occurred while fetching data for {}", symbol, e);
         }
 
-        return new Stock(symbol, name, price, peRatio, marketCap, revenue, grossProfit, volume, exchange);
+        return new Stock(symbol, name, price, peRatio, marketCap, revenue, grossProfit, volume, exchange, historicalRevenue, historicalNetIncome);
     }
 }

@@ -68,16 +68,23 @@ public class Stock {
                 .sorted(Map.Entry.<T, BigDecimal>comparingByKey().reversed())
                 .collect(Collectors.toList());
 
+            int currentYear = LocalDate.now().getYear();
+
             for (int i = 0; i < sortedData.size(); i++) {
                 Map.Entry<T, BigDecimal> currentEntry = sortedData.get(i);
                 String formattedValue = analyzer.formatBigNumber(currentEntry.getValue());
                 String growthString = "";
 
                 if (i < sortedData.size() - 1) {
-                    Map.Entry<T, BigDecimal> previousEntry = sortedData.get(i + 1);
-                    BigDecimal growth = analyzer.calculateGrowth(currentEntry.getValue(), previousEntry.getValue());
-                    if (growth != null) {
-                        growthString = String.format(" (%s%.2f%%)", growth.signum() > 0 ? "+" : "", growth);
+                    // Don't show growth for the current, incomplete year
+                    if (currentEntry.getKey() instanceof Integer && (Integer) currentEntry.getKey() == currentYear) {
+                        growthString = " (incomplete year)";
+                    } else {
+                        Map.Entry<T, BigDecimal> previousEntry = sortedData.get(i + 1);
+                        BigDecimal growth = analyzer.calculateGrowth(currentEntry.getValue(), previousEntry.getValue());
+                        if (growth != null) {
+                            growthString = String.format(" (%s%.2f%%)", growth.signum() > 0 ? "+" : "", growth);
+                        }
                     }
                 }
                 System.out.printf("    %s: $%s%s%n", currentEntry.getKey(), formattedValue, growthString);

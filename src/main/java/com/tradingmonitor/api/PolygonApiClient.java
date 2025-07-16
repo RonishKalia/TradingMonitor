@@ -55,7 +55,6 @@ public class PolygonApiClient implements ApiProvider {
 
                 if (jsonResponse.has("next_url")) {
                     nextUrl = jsonResponse.get("next_url").getAsString() + "&apiKey=" + apiKey;
-                    Thread.sleep(60000); // Wait 1 minute before the next request
                 } else {
                     nextUrl = null;
                 }

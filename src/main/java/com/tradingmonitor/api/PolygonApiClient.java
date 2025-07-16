@@ -10,9 +10,13 @@ import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.time.LocalDate;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 public class PolygonApiClient implements ApiProvider {
 
@@ -38,9 +42,9 @@ public class PolygonApiClient implements ApiProvider {
         JsonObject jsonResponse = gson.fromJson(new InputStreamReader(conn.getInputStream()), JsonObject.class);
         JsonArray results = jsonResponse.getAsJsonArray("results");
 
-        Map<String, BigDecimal> quarterlyRevenue = new TreeMap<>();
-        Map<String, BigDecimal> quarterlyNetIncome = new TreeMap<>();
-        Map<String, BigDecimal> quarterlyGrossProfit = new TreeMap<>();
+        Map<String, BigDecimal> quarterlyRevenue = new TreeMap<>(Collections.reverseOrder());
+        Map<String, BigDecimal> quarterlyNetIncome = new TreeMap<>(Collections.reverseOrder());
+        Map<String, BigDecimal> quarterlyGrossProfit = new TreeMap<>(Collections.reverseOrder());
 
         for (JsonElement resultElement : results) {
             JsonObject result = resultElement.getAsJsonObject();
@@ -61,17 +65,40 @@ public class PolygonApiClient implements ApiProvider {
             }
         }
 
-        Map<Integer, BigDecimal> annualRevenue = deriveAnnualData(quarterlyRevenue);
+        // Filter quarterly data to the last 2 years (8 quarters)
+        Map<String, BigDecimal> filteredQuarterlyRevenue = filterLastNQuarters(quarterlyRevenue, 8);
+        Map<String, BigDecimal> filteredQuarterlyNetIncome = filterLastNQuarters(quarterlyNetIncome, 8);
+        Map<String, BigDecimal> filteredQuarterlyGrossProfit = filterLastNQuarters(quarterlyGrossProfit, 8);
+
+        Map<Integer, BigDecimal> annualRevenue = deriveAnnualData(quarterlyRevenue); // derive from all quarterly data
         Map<Integer, BigDecimal> annualNetIncome = deriveAnnualData(quarterlyNetIncome);
         Map<Integer, BigDecimal> annualGrossProfit = deriveAnnualData(quarterlyGrossProfit);
 
+        // Filter annual data to the last 4 years
+        int currentYear = LocalDate.now().getYear();
+        Map<Integer, BigDecimal> filteredAnnualRevenue = filterLastNYears(annualRevenue, 4, currentYear);
+        Map<Integer, BigDecimal> filteredAnnualNetIncome = filterLastNYears(annualNetIncome, 4, currentYear);
+        Map<Integer, BigDecimal> filteredAnnualGrossProfit = filterLastNYears(annualGrossProfit, 4, currentYear);
+
         return new Stock(symbol, null, null, null, null, null, null,
-            annualRevenue, annualNetIncome, annualGrossProfit,
-            quarterlyRevenue, quarterlyNetIncome, quarterlyGrossProfit);
+            filteredAnnualRevenue, filteredAnnualNetIncome, filteredAnnualGrossProfit,
+            filteredQuarterlyRevenue, filteredQuarterlyNetIncome, filteredQuarterlyGrossProfit);
+    }
+
+    private Map<String, BigDecimal> filterLastNQuarters(Map<String, BigDecimal> quarterlyData, int quarters) {
+        return quarterlyData.entrySet().stream()
+                .limit(quarters)
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new));
+    }
+
+    private Map<Integer, BigDecimal> filterLastNYears(Map<Integer, BigDecimal> annualData, int years, int currentYear) {
+        return annualData.entrySet().stream()
+                .filter(entry -> entry.getKey() >= currentYear - years)
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
     private Map<Integer, BigDecimal> deriveAnnualData(Map<String, BigDecimal> quarterlyData) {
-        Map<Integer, BigDecimal> annualData = new HashMap<>();
+        Map<Integer, BigDecimal> annualData = new TreeMap<>(Collections.reverseOrder());
         for (Map.Entry<String, BigDecimal> entry : quarterlyData.entrySet()) {
             int year = Integer.parseInt(entry.getKey().substring(0, 4));
             annualData.put(year, annualData.getOrDefault(year, BigDecimal.ZERO).add(entry.getValue()));

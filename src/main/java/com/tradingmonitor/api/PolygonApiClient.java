@@ -75,6 +75,11 @@ public class PolygonApiClient implements ApiProvider {
                     }
                 }
 
+                // Adjust Q4 data
+                adjustQ4Data(quarterlyRevenue);
+                adjustQ4Data(quarterlyNetIncome);
+                adjustQ4Data(quarterlyGrossProfit);
+
                 // Filter quarterly data to the last 2 years (8 quarters)
                 Map<String, BigDecimal> filteredQuarterlyRevenue = filterLastNQuarters(quarterlyRevenue, 8);
                 Map<String, BigDecimal> filteredQuarterlyNetIncome = filterLastNQuarters(quarterlyNetIncome, 8);
@@ -112,6 +117,37 @@ public class PolygonApiClient implements ApiProvider {
             }
         }
         throw new IOException("Failed to fetch data from Polygon.io after " + maxRetries + " retries.");
+    }
+
+    private void adjustQ4Data(Map<String, BigDecimal> quarterlyData) {
+        for (Map.Entry<String, BigDecimal> entry : quarterlyData.entrySet()) {
+            String endDate = entry.getKey();
+            if (endDate.substring(5, 7).equals("12")) { // Check if it's a Q4 report
+                int year = Integer.parseInt(endDate.substring(0, 4));
+                BigDecimal q1 = BigDecimal.ZERO;
+                BigDecimal q2 = BigDecimal.ZERO;
+                BigDecimal q3 = BigDecimal.ZERO;
+
+                for (Map.Entry<String, BigDecimal> innerEntry : quarterlyData.entrySet()) {
+                    String innerEndDate = innerEntry.getKey();
+                    if (Integer.parseInt(innerEndDate.substring(0, 4)) == year) {
+                        switch (innerEndDate.substring(5, 7)) {
+                            case "03":
+                                q1 = innerEntry.getValue();
+                                break;
+                            case "06":
+                                q2 = innerEntry.getValue();
+                                break;
+                            case "09":
+                                q3 = innerEntry.getValue();
+                                break;
+                        }
+                    }
+                }
+                BigDecimal q4 = entry.getValue().subtract(q1).subtract(q2).subtract(q3);
+                entry.setValue(q4);
+            }
+        }
     }
 
     private Map<String, BigDecimal> filterLastNQuarters(Map<String, BigDecimal> quarterlyData, int quarters) {

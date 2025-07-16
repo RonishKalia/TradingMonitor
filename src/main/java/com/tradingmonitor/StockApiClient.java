@@ -4,6 +4,7 @@ import com.tradingmonitor.api.AlphaVantageApiClient;
 import com.tradingmonitor.api.ApiProvider;
 import com.tradingmonitor.api.FinancialModelingPrepApiClient;
 import com.tradingmonitor.api.FinnhubApiClient;
+import com.tradingmonitor.api.PolygonApiClient;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -25,12 +26,13 @@ public class StockApiClient {
     private final FinancialModelingPrepApiClient fmpClient;
     private final BlockingQueue<Long> requestTimestamps;
 
-    public StockApiClient(String finnhubApiKey, String fmpApiKey, String alphaVantageApiKey) {
+    public StockApiClient(String finnhubApiKey, String fmpApiKey, String alphaVantageApiKey, String polygonApiKey) {
         this.apiProviders = new ArrayList<>();
         this.apiProviders.add(new FinnhubApiClient(finnhubApiKey));
         this.fmpClient = new FinancialModelingPrepApiClient(fmpApiKey);
         this.apiProviders.add(this.fmpClient);
         this.apiProviders.add(new AlphaVantageApiClient(alphaVantageApiKey));
+        this.apiProviders.add(new PolygonApiClient(polygonApiKey));
         this.requestTimestamps = new ArrayBlockingQueue<>(MAX_REQUESTS_PER_MINUTE);
     }
 

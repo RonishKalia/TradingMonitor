@@ -9,6 +9,7 @@ public class Main {
     private static final String FINNHUB_API_KEY = "d1rapopr01qk8n65sjs0d1rapopr01qk8n65sjsg";
     private static final String FMP_API_KEY = "CgBHy11GWoHAYxfp3t5zoj3jzJTkEF5r";
     private static final String ALPHA_VANTAGE_API_KEY = "T03NLMTO0T4J9PC1";
+    private static final String POLYGON_API_KEY = "7CrGcKbTwnPRRsksHHX2cLEfDun9BSt4";
     private static final boolean IS_TESTING_MODE = true;
     private static final boolean IS_SINGLE_STOCK_TEST_MODE = true;
     private static final String SINGLE_STOCK_SYMBOL = "GOOG";
@@ -19,7 +20,7 @@ public class Main {
     }
 
     public void runStockAnalysis() {
-        StockApiClient apiClient = new StockApiClient(FINNHUB_API_KEY, FMP_API_KEY, ALPHA_VANTAGE_API_KEY);
+        StockApiClient apiClient = new StockApiClient(FINNHUB_API_KEY, FMP_API_KEY, ALPHA_VANTAGE_API_KEY, POLYGON_API_KEY);
         StockAnalyzer analyzer = new StockAnalyzer(apiClient);
         
         System.out.println("\n=== TRADING MONITOR - STOCK ANALYSIS ===");

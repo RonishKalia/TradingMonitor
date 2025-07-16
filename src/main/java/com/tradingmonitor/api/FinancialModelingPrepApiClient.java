@@ -134,20 +134,10 @@ public class FinancialModelingPrepApiClient implements ApiProvider {
     @Override
     public Stock fetchStockData(String symbol, String exchange) throws IOException {
         BigDecimal peRatio = null;
-        Map<Integer, BigDecimal> historicalRevenue = new HashMap<>();
-        Map<Integer, BigDecimal> historicalNetIncome = new HashMap<>();
-        Map<Integer, BigDecimal> historicalGrossProfit = new HashMap<>();
 
         Map<String, BigDecimal> metrics = fetchKeyMetrics(symbol);
         peRatio = metrics.get("peRatioTTM");
 
-        Map<Integer, Map<String, BigDecimal>> financials = fetchFinancials(symbol);
-        for (Map.Entry<Integer, Map<String, BigDecimal>> entry : financials.entrySet()) {
-            historicalRevenue.put(entry.getKey(), entry.getValue().get("revenue"));
-            historicalNetIncome.put(entry.getKey(), entry.getValue().get("netIncome"));
-            historicalGrossProfit.put(entry.getKey(), entry.getValue().get("grossProfit"));
-        }
-
-        return new Stock(symbol, null, null, peRatio, null, null, exchange, historicalRevenue, historicalNetIncome, historicalGrossProfit, null, null, null);
+        return new Stock(symbol, null, null, peRatio, null, null, exchange, null, null, null, null, null, null);
     }
 }

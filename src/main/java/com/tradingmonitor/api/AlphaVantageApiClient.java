@@ -84,17 +84,6 @@ public class AlphaVantageApiClient implements ApiProvider {
 
     @Override
     public Stock fetchStockData(String symbol, String exchange) throws IOException {
-        Map<String, BigDecimal> quarterlyRevenue = new HashMap<>();
-        Map<String, BigDecimal> quarterlyNetIncome = new HashMap<>();
-        Map<String, BigDecimal> quarterlyGrossProfit = new HashMap<>();
-
-        Map<String, Map<String, BigDecimal>> quarterlyFinancials = fetchQuarterlyFinancials(symbol);
-        for (Map.Entry<String, Map<String, BigDecimal>> entry : quarterlyFinancials.entrySet()) {
-            quarterlyRevenue.put(entry.getKey(), entry.getValue().get("totalRevenue"));
-            quarterlyNetIncome.put(entry.getKey(), entry.getValue().get("netIncome"));
-            quarterlyGrossProfit.put(entry.getKey(), entry.getValue().get("grossProfit"));
-        }
-
-        return new Stock(symbol, null, null, null, null, null, exchange, null, null, null, quarterlyRevenue, quarterlyNetIncome, quarterlyGrossProfit);
+        return new Stock(symbol, null, null, null, null, null, exchange, null, null, null, null, null, null);
     }
 }

@@ -78,37 +78,18 @@ public class StockApiClient {
                 rateLimit();
                 Stock stock = provider.fetchStockData(symbol, exchange);
                 if (stock != null) {
-                    if (stock.getName() != null) {
+                    if (provider instanceof FinnhubApiClient) {
                         name = stock.getName();
-                    }
-                    if (stock.getPrice() != null) {
                         price = stock.getPrice();
-                    }
-                    if (stock.getPeRatio() != null) {
-                        peRatio = stock.getPeRatio();
-                    }
-                    if (stock.getMarketCap() != null) {
                         marketCap = stock.getMarketCap();
-                    }
-                    if (stock.getVolume() != null) {
-                        volume = stock.getVolume();
-                    }
-                    if (stock.getHistoricalRevenue() != null && !stock.getHistoricalRevenue().isEmpty()) {
+                    } else if (provider instanceof FinancialModelingPrepApiClient) {
+                        peRatio = stock.getPeRatio();
+                    } else if (provider instanceof PolygonApiClient) {
                         historicalRevenue.putAll(stock.getHistoricalRevenue());
-                    }
-                    if (stock.getHistoricalNetIncome() != null && !stock.getHistoricalNetIncome().isEmpty()) {
                         historicalNetIncome.putAll(stock.getHistoricalNetIncome());
-                    }
-                    if (stock.getHistoricalGrossProfit() != null && !stock.getHistoricalGrossProfit().isEmpty()) {
                         historicalGrossProfit.putAll(stock.getHistoricalGrossProfit());
-                    }
-                    if (stock.getQuarterlyRevenue() != null && !stock.getQuarterlyRevenue().isEmpty()) {
                         quarterlyRevenue.putAll(stock.getQuarterlyRevenue());
-                    }
-                    if (stock.getQuarterlyNetIncome() != null && !stock.getQuarterlyNetIncome().isEmpty()) {
                         quarterlyNetIncome.putAll(stock.getQuarterlyNetIncome());
-                    }
-                    if (stock.getQuarterlyGrossProfit() != null && !stock.getQuarterlyGrossProfit().isEmpty()) {
                         quarterlyGrossProfit.putAll(stock.getQuarterlyGrossProfit());
                     }
                 }

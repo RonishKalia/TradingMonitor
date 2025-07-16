@@ -10,7 +10,7 @@ public class Main {
     private static final String FMP_API_KEY = "CgBHy11GWoHAYxfp3t5zoj3jzJTkEF5r";
     private static final String ALPHA_VANTAGE_API_KEY = "T03NLMTO0T4J9PC1";
     private static final boolean IS_TESTING_MODE = true;
-    private static final boolean IS_SINGLE_STOCK_TEST_MODE = false;
+    private static final boolean IS_SINGLE_STOCK_TEST_MODE = true;
     private static final String SINGLE_STOCK_SYMBOL = "GOOG";
 
     public static void main(String[] args) {

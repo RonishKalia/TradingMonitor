@@ -67,4 +67,12 @@ public class StockAnalyzer {
         }
     }
 
+    public BigDecimal calculateGrowth(BigDecimal currentValue, BigDecimal previousValue) {
+        if (currentValue == null || previousValue == null || previousValue.compareTo(BigDecimal.ZERO) == 0) {
+            return null;
+        }
+        return currentValue.subtract(previousValue)
+            .divide(previousValue, 4, RoundingMode.HALF_UP)
+            .multiply(BigDecimal.valueOf(100));
     }
+}

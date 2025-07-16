@@ -1,7 +1,11 @@
 package com.tradingmonitor;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class Stock {
     private final String symbol;
@@ -17,22 +21,13 @@ public class Stock {
     private final Map<String, BigDecimal> quarterlyRevenue;
     private final Map<String, BigDecimal> quarterlyNetIncome;
     private final Map<String, BigDecimal> quarterlyGrossProfit;
-    private final Map<Integer, BigDecimal> historicalRevenueChange;
-    private final Map<Integer, BigDecimal> historicalNetIncomeChange;
-    private final Map<Integer, BigDecimal> historicalGrossProfitChange;
-    private final Map<String, BigDecimal> quarterlyRevenueChange;
-    private final Map<String, BigDecimal> quarterlyNetIncomeChange;
-    private final Map<String, BigDecimal> quarterlyGrossProfitChange;
 
     public Stock(String symbol, String name, BigDecimal price, BigDecimal peRatio,
                      BigDecimal marketCap,
                      BigDecimal volume, String exchange,
                      Map<Integer, BigDecimal> historicalRevenue, Map<Integer, BigDecimal> historicalNetIncome,
                      Map<Integer, BigDecimal> historicalGrossProfit, Map<String, BigDecimal> quarterlyRevenue,
-                     Map<String, BigDecimal> quarterlyNetIncome, Map<String, BigDecimal> quarterlyGrossProfit,
-                     Map<Integer, BigDecimal> historicalRevenueChange, Map<Integer, BigDecimal> historicalNetIncomeChange,
-                     Map<Integer, BigDecimal> historicalGrossProfitChange, Map<String, BigDecimal> quarterlyRevenueChange,
-                     Map<String, BigDecimal> quarterlyNetIncomeChange, Map<String, BigDecimal> quarterlyGrossProfitChange) {
+                     Map<String, BigDecimal> quarterlyNetIncome, Map<String, BigDecimal> quarterlyGrossProfit) {
         this.symbol = symbol;
         this.name = name;
         this.price = price;
@@ -46,12 +41,6 @@ public class Stock {
         this.quarterlyRevenue = quarterlyRevenue;
         this.quarterlyNetIncome = quarterlyNetIncome;
         this.quarterlyGrossProfit = quarterlyGrossProfit;
-        this.historicalRevenueChange = historicalRevenueChange;
-        this.historicalNetIncomeChange = historicalNetIncomeChange;
-        this.historicalGrossProfitChange = historicalGrossProfitChange;
-        this.quarterlyRevenueChange = quarterlyRevenueChange;
-        this.quarterlyNetIncomeChange = quarterlyNetIncomeChange;
-        this.quarterlyGrossProfitChange = quarterlyGrossProfitChange;
     }
 
     public String getSymbol() { return symbol; }
@@ -67,12 +56,66 @@ public class Stock {
     public Map<String, BigDecimal> getQuarterlyRevenue() { return quarterlyRevenue; }
     public Map<String, BigDecimal> getQuarterlyNetIncome() { return quarterlyNetIncome; }
     public Map<String, BigDecimal> getQuarterlyGrossProfit() { return quarterlyGrossProfit; }
-    public Map<Integer, BigDecimal> getHistoricalRevenueChange() { return historicalRevenueChange; }
-    public Map<Integer, BigDecimal> getHistoricalNetIncomeChange() { return historicalNetIncomeChange; }
-    public Map<Integer, BigDecimal> getHistoricalGrossProfitChange() { return historicalGrossProfitChange; }
-    public Map<String, BigDecimal> getQuarterlyRevenueChange() { return quarterlyRevenueChange; }
-    public Map<String, BigDecimal> getQuarterlyNetIncomeChange() { return quarterlyNetIncomeChange; }
-    public Map<String, BigDecimal> getQuarterlyGrossProfitChange() { return quarterlyGrossProfitChange; }
+
+    private <T extends Comparable<T>> void printAnnualDataWithGrowth(
+        String title,
+        Map<T, BigDecimal> data,
+        StockAnalyzer analyzer
+    ) {
+        if (data != null && !data.isEmpty()) {
+            System.out.println("  " + title + ":");
+            List<Map.Entry<T, BigDecimal>> sortedData = data.entrySet().stream()
+                .sorted(Map.Entry.<T, BigDecimal>comparingByKey().reversed())
+                .collect(Collectors.toList());
+
+            for (int i = 0; i < sortedData.size(); i++) {
+                Map.Entry<T, BigDecimal> currentEntry = sortedData.get(i);
+                String formattedValue = analyzer.formatBigNumber(currentEntry.getValue());
+                String growthString = "";
+
+                if (i < sortedData.size() - 1) {
+                    Map.Entry<T, BigDecimal> previousEntry = sortedData.get(i + 1);
+                    BigDecimal growth = analyzer.calculateGrowth(currentEntry.getValue(), previousEntry.getValue());
+                    if (growth != null) {
+                        growthString = String.format(" (%s%.2f%%)", growth.signum() > 0 ? "+" : "", growth);
+                    }
+                }
+                System.out.printf("    %s: $%s%s%n", currentEntry.getKey(), formattedValue, growthString);
+            }
+        }
+    }
+
+    private void printQuarterlyDataWithYoyGrowth(
+        String title,
+        Map<String, BigDecimal> data,
+        StockAnalyzer analyzer
+    ) {
+        if (data != null && !data.isEmpty()) {
+            System.out.println("  " + title + ":");
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+            List<Map.Entry<String, BigDecimal>> sortedData = data.entrySet().stream()
+                .sorted(Map.Entry.<String, BigDecimal>comparingByKey().reversed())
+                .collect(Collectors.toList());
+
+            for (Map.Entry<String, BigDecimal> currentEntry : sortedData) {
+                String formattedValue = analyzer.formatBigNumber(currentEntry.getValue());
+                String growthString = "";
+
+                LocalDate currentDate = LocalDate.parse(currentEntry.getKey(), formatter);
+                LocalDate previousYearDate = currentDate.minusYears(1);
+                String previousYearKey = previousYearDate.format(formatter);
+
+                if (data.containsKey(previousYearKey)) {
+                    BigDecimal previousYearValue = data.get(previousYearKey);
+                    BigDecimal growth = analyzer.calculateGrowth(currentEntry.getValue(), previousYearValue);
+                    if (growth != null) {
+                        growthString = String.format(" (YoY: %s%.2f%%)", growth.signum() > 0 ? "+" : "", growth);
+                    }
+                }
+                System.out.printf("    %s: $%s%s%n", currentEntry.getKey(), formattedValue, growthString);
+            }
+        }
+    }
 
     public void printAllData(StockAnalyzer analyzer) {
         System.out.println(String.format("%-6s | %-20s | P/E: %-8s",
@@ -81,71 +124,12 @@ public class Stock {
             getPeRatio() != null ? getPeRatio().toString() : "N/A"
         ));
 
-        if (getHistoricalRevenue() != null && !getHistoricalRevenue().isEmpty()) {
-            System.out.println("  Historical Revenue:");
-            getHistoricalRevenue().entrySet().stream()
-                .sorted(Map.Entry.<Integer, BigDecimal>comparingByKey().reversed())
-                .forEach(entry -> {
-                    BigDecimal change = getHistoricalRevenueChange().get(entry.getKey());
-                    String changeStr = (change != null) ? String.format(" (%+.2f%%)", change) : "";
-                    System.out.println(String.format("    %d: $%s%s", entry.getKey(), analyzer.formatBigNumber(entry.getValue()), changeStr));
-                });
-        }
-
-        if (getHistoricalNetIncome() != null && !getHistoricalNetIncome().isEmpty()) {
-            System.out.println("  Historical Net Income:");
-            getHistoricalNetIncome().entrySet().stream()
-                .sorted(Map.Entry.<Integer, BigDecimal>comparingByKey().reversed())
-                .forEach(entry -> {
-                    BigDecimal change = getHistoricalNetIncomeChange().get(entry.getKey());
-                    String changeStr = (change != null) ? String.format(" (%+.2f%%)", change) : "";
-                    System.out.println(String.format("    %d: $%s%s", entry.getKey(), analyzer.formatBigNumber(entry.getValue()), changeStr));
-                });
-        }
-
-        if (getHistoricalGrossProfit() != null && !getHistoricalGrossProfit().isEmpty()) {
-            System.out.println("  Historical Gross Profit:");
-            getHistoricalGrossProfit().entrySet().stream()
-                .sorted(Map.Entry.<Integer, BigDecimal>comparingByKey().reversed())
-                .forEach(entry -> {
-                    BigDecimal change = getHistoricalGrossProfitChange().get(entry.getKey());
-                    String changeStr = (change != null) ? String.format(" (%+.2f%%)", change) : "";
-                    System.out.println(String.format("    %d: $%s%s", entry.getKey(), analyzer.formatBigNumber(entry.getValue()), changeStr));
-                });
-        }
-
-        if (getQuarterlyRevenue() != null && !getQuarterlyRevenue().isEmpty()) {
-            System.out.println("  Quarterly Revenue:");
-            getQuarterlyRevenue().entrySet().stream()
-                .sorted(Map.Entry.<String, BigDecimal>comparingByKey().reversed())
-                .forEach(entry -> {
-                    BigDecimal change = getQuarterlyRevenueChange().get(entry.getKey());
-                    String changeStr = (change != null) ? String.format(" (%+.2f%%)", change) : "";
-                    System.out.println(String.format("    %s: $%s%s", entry.getKey(), analyzer.formatBigNumber(entry.getValue()), changeStr));
-                });
-        }
-
-        if (getQuarterlyNetIncome() != null && !getQuarterlyNetIncome().isEmpty()) {
-            System.out.println("  Quarterly Net Income:");
-            getQuarterlyNetIncome().entrySet().stream()
-                .sorted(Map.Entry.<String, BigDecimal>comparingByKey().reversed())
-                .forEach(entry -> {
-                    BigDecimal change = getQuarterlyNetIncomeChange().get(entry.getKey());
-                    String changeStr = (change != null) ? String.format(" (%+.2f%%)", change) : "";
-                    System.out.println(String.format("    %s: $%s%s", entry.getKey(), analyzer.formatBigNumber(entry.getValue()), changeStr));
-                });
-        }
-
-        if (getQuarterlyGrossProfit() != null && !getQuarterlyGrossProfit().isEmpty()) {
-            System.out.println("  Quarterly Gross Profit:");
-            getQuarterlyGrossProfit().entrySet().stream()
-                .sorted(Map.Entry.<String, BigDecimal>comparingByKey().reversed())
-                .forEach(entry -> {
-                    BigDecimal change = getQuarterlyGrossProfitChange().get(entry.getKey());
-                    String changeStr = (change != null) ? String.format(" (%+.2f%%)", change) : "";
-                    System.out.println(String.format("    %s: $%s%s", entry.getKey(), analyzer.formatBigNumber(entry.getValue()), changeStr));
-                });
-        }
+        printAnnualDataWithGrowth("Historical Revenue", getHistoricalRevenue(), analyzer);
+        printAnnualDataWithGrowth("Historical Net Income", getHistoricalNetIncome(), analyzer);
+        printAnnualDataWithGrowth("Historical Gross Profit", getHistoricalGrossProfit(), analyzer);
+        printQuarterlyDataWithYoyGrowth("Quarterly Revenue", getQuarterlyRevenue(), analyzer);
+        printQuarterlyDataWithYoyGrowth("Quarterly Net Income", getQuarterlyNetIncome(), analyzer);
+        printQuarterlyDataWithYoyGrowth("Quarterly Gross Profit", getQuarterlyGrossProfit(), analyzer);
     }
     
     @Override

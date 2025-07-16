@@ -22,17 +22,19 @@ public class StockApiClient {
     private static final int MAX_REQUESTS_PER_MINUTE = 60;
     private static final long TIME_WINDOW_MS = 65 * 1000; // 65 seconds
 
-    private final List<ApiProvider> apiProviders;
-    private final FinancialModelingPrepApiClient fmpClient;
     private final BlockingQueue<Long> requestTimestamps;
+    private final FinnhubApiClient finnhubClient;
+    private final PolygonApiClient polygonClient;
+    private final FinancialModelingPrepApiClient fmpClient;
+    private final List<ApiProvider> apiProviders;
 
     public StockApiClient(String finnhubApiKey, String fmpApiKey, String alphaVantageApiKey, String polygonApiKey) {
         this.apiProviders = new ArrayList<>();
-        this.apiProviders.add(new FinnhubApiClient(finnhubApiKey));
+        this.finnhubClient = new FinnhubApiClient(finnhubApiKey);
+        this.apiProviders.add(this.finnhubClient);
+        this.polygonClient = new PolygonApiClient(polygonApiKey);
+        this.apiProviders.add(this.polygonClient);
         this.fmpClient = new FinancialModelingPrepApiClient(fmpApiKey);
-        this.apiProviders.add(this.fmpClient);
-        this.apiProviders.add(new AlphaVantageApiClient(alphaVantageApiKey));
-        this.apiProviders.add(new PolygonApiClient(polygonApiKey));
         this.requestTimestamps = new ArrayBlockingQueue<>(MAX_REQUESTS_PER_MINUTE);
     }
 
@@ -82,9 +84,10 @@ public class StockApiClient {
                         name = stock.getName();
                         price = stock.getPrice();
                         marketCap = stock.getMarketCap();
-                    } else if (provider instanceof FinancialModelingPrepApiClient) {
                         peRatio = stock.getPeRatio();
-                    } else if (provider instanceof PolygonApiClient) {
+                    } /* else if (provider instanceof FinancialModelingPrepApiClient) {
+                        peRatio = stock.getPeRatio();
+                    } */ else if (provider instanceof PolygonApiClient) {
                         historicalRevenue.putAll(stock.getHistoricalRevenue());
                         historicalNetIncome.putAll(stock.getHistoricalNetIncome());
                         historicalGrossProfit.putAll(stock.getHistoricalGrossProfit());

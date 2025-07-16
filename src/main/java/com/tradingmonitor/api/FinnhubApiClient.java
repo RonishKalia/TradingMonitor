@@ -8,7 +8,9 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,6 +23,8 @@ public class FinnhubApiClient implements ApiProvider {
     private static final String BASE_URL = "https://finnhub.io/api/v1";
     private static final String QUOTE_URL_FORMAT = BASE_URL + "/quote?symbol=%s&token=%s";
     private static final String PROFILE_URL_FORMAT = BASE_URL + "/stock/profile2?symbol=%s&token=%s";
+    private static final String METRIC_URL_FORMAT = BASE_URL + "/stock/metric?symbol=%s&metric=all&token=%s";
+    private static final String SYMBOL_URL_FORMAT = BASE_URL + "/stock/symbol?exchange=%s&token=%s";
 
     private final String apiKey;
     private final HttpClient httpClient;
@@ -76,6 +80,53 @@ public class FinnhubApiClient implements ApiProvider {
         return profile;
     }
 
+    public Map<String, BigDecimal> fetchMetrics(String symbol) throws IOException {
+        Map<String, BigDecimal> metrics = new HashMap<>();
+        try {
+            String url = String.format(METRIC_URL_FORMAT, symbol, apiKey);
+            HttpResponse<String> response = sendRequest(url);
+            if (response.statusCode() == 200) {
+                JsonNode rootNode = objectMapper.readTree(response.body());
+                JsonNode metricNode = rootNode.get("metric");
+                if (metricNode != null && metricNode.isObject()) {
+                    metrics.put("peRatio", toBigDecimal(metricNode.get("peTTM")));
+                }
+            } else {
+                logger.warn("Failed to fetch metrics data for {}: Status {}", symbol, response.statusCode());
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            logger.error("Interrupted while fetching metrics for {}", symbol, e);
+            throw new IOException("Interrupted while fetching metrics for " + symbol, e);
+        }
+        return metrics;
+    }
+
+    public List<String> fetchStockSymbols(String exchange) throws IOException {
+        List<String> symbols = new ArrayList<>();
+        try {
+            String url = String.format(SYMBOL_URL_FORMAT, exchange, apiKey);
+            HttpResponse<String> response = sendRequest(url);
+            if (response.statusCode() == 200) {
+                JsonNode rootNode = objectMapper.readTree(response.body());
+                if (rootNode.isArray()) {
+                    for (JsonNode node : rootNode) {
+                        if (node.has("type") && node.get("type").asText().equalsIgnoreCase("Common Stock")) {
+                            symbols.add(node.get("symbol").asText());
+                        }
+                    }
+                }
+            } else {
+                logger.warn("Failed to fetch stock symbols for {}: Status {}", exchange, response.statusCode());
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            logger.error("Interrupted while fetching stock symbols for {}", exchange, e);
+            throw new IOException("Interrupted while fetching stock symbols for " + exchange, e);
+        }
+        return symbols;
+    }
+
     private BigDecimal toBigDecimal(JsonNode node) {
         if (node == null || node.isNull()) {
             return null;
@@ -97,6 +148,7 @@ public class FinnhubApiClient implements ApiProvider {
         String name = null;
         BigDecimal price = null;
         BigDecimal marketCap = null;
+        BigDecimal peRatio = null;
 
         Map<String, BigDecimal> quote = fetchQuote(symbol);
         price = quote.get("price");
@@ -105,6 +157,9 @@ public class FinnhubApiClient implements ApiProvider {
         name = (String) profile.get("name");
         marketCap = (BigDecimal) profile.get("marketCapitalization");
 
-        return new Stock(symbol, name, price, null, marketCap, null, exchange, null, null, null, null, null, null);
+        Map<String, BigDecimal> metrics = fetchMetrics(symbol);
+        peRatio = metrics.get("peRatio");
+
+        return new Stock(symbol, name, price, peRatio, marketCap, null, exchange, null, null, null, null, null, null);
     }
 }

@@ -11,20 +11,62 @@ import java.math.BigDecimal;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 public class PolygonApiClient implements ApiProvider {
 
-    private static final String API_URL = "https://api.polygon.io/vX/reference/financials?ticker=%s&period_of_report=quarterly&limit=100&apiKey=%s";
+    private static final String FINANCIALS_API_URL = "https://api.polygon.io/vX/reference/financials?ticker=%s&period_of_report=quarterly&limit=100&apiKey=%s";
+    private static final String TICKERS_API_URL = "https://api.polygon.io/v3/reference/tickers?exchange=%s&market=stocks&active=true&limit=1000&apiKey=%s";
     private final String apiKey;
 
     public PolygonApiClient(String apiKey) {
         this.apiKey = apiKey;
+    }
+
+    public List<String> fetchStockSymbols(String exchange) throws IOException {
+        List<String> symbols = new ArrayList<>();
+        String nextUrl = String.format(TICKERS_API_URL, exchange, apiKey);
+
+        while (nextUrl != null) {
+            try {
+                URL url = new URL(nextUrl);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+
+                if (conn.getResponseCode() != 200) {
+                    throw new IOException("Failed to fetch tickers from Polygon.io: " + conn.getResponseCode() + " " + conn.getResponseMessage());
+                }
+
+                Gson gson = new Gson();
+                JsonObject jsonResponse = gson.fromJson(new InputStreamReader(conn.getInputStream()), JsonObject.class);
+                JsonArray results = jsonResponse.getAsJsonArray("results");
+
+                for (JsonElement resultElement : results) {
+                    JsonObject result = resultElement.getAsJsonObject();
+                    symbols.add(result.get("ticker").getAsString());
+                }
+
+                if (jsonResponse.has("next_url")) {
+                    nextUrl = jsonResponse.get("next_url").getAsString() + "&apiKey=" + apiKey;
+                    Thread.sleep(60000); // Wait 1 minute before the next request
+                } else {
+                    nextUrl = null;
+                }
+            } catch (IOException e) {
+                throw new IOException("Failed to fetch tickers from Polygon.io", e);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IOException("Interrupted while fetching tickers from Polygon.io", e);
+            }
+        }
+        return symbols;
     }
 
     @Override
@@ -33,7 +75,7 @@ public class PolygonApiClient implements ApiProvider {
         int retryCount = 0;
         while (retryCount < maxRetries) {
             try {
-                String urlString = String.format(API_URL, symbol, apiKey);
+                String urlString = String.format(FINANCIALS_API_URL, symbol, apiKey);
                 URL url = new URL(urlString);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");

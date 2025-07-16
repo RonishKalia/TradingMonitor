@@ -84,6 +84,6 @@ public class AlphaVantageApiClient implements ApiProvider {
 
     @Override
     public Stock fetchStockData(String symbol, String exchange) throws IOException {
-        return new Stock(symbol, null, null, null, null, null, exchange, null, null, null, null, null, null, null);
+        return new Stock(symbol, null, null, null, null, null, exchange, null, null, null, null, null, null, null, null, null);
     }
 }

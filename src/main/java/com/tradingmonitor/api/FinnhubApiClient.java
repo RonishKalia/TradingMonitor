@@ -154,6 +154,6 @@ public class FinnhubApiClient implements ApiProvider {
         name = (String) profile.get("name");
         marketCap = (BigDecimal) profile.get("marketCapitalization");
 
-        return new Stock(symbol, name, price, null, marketCap, null, exchange, null, null, null, null, null, null, null);
+        return new Stock(symbol, name, price, null, marketCap, null, exchange, null, null, null, null, null, null, null, null, null);
     }
 }

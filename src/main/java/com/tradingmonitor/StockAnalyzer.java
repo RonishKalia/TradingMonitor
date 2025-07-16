@@ -29,7 +29,7 @@ public class StockAnalyzer {
 
         System.out.println("Analyzing " + symbols.size() + " US stocks...");
 
-        return symbols.parallelStream()
+        return symbols.stream()
             .map(symbol -> {
                 try {
                     return stockApiClient.fetchStockData(symbol, "US");

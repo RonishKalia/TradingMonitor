@@ -23,6 +23,8 @@ public class Stock {
     private final Map<String, BigDecimal> quarterlyNetIncome;
     private final Map<String, BigDecimal> quarterlyGrossProfit;
     private final Map<String, BigDecimal> quarterlyEps;
+    private final Map<String, BigDecimal> quarterlyDilutedEps;
+    private final Map<String, BigDecimal> weightedAverageSharesOutstanding;
 
     public Stock(String symbol, String name, BigDecimal price, BigDecimal peRatio,
                      BigDecimal marketCap,
@@ -30,7 +32,7 @@ public class Stock {
                      Map<Integer, BigDecimal> historicalRevenue, Map<Integer, BigDecimal> historicalNetIncome,
                      Map<Integer, BigDecimal> historicalGrossProfit, Map<String, BigDecimal> quarterlyRevenue,
                      Map<String, BigDecimal> quarterlyNetIncome, Map<String, BigDecimal> quarterlyGrossProfit,
-                     Map<String, BigDecimal> quarterlyEps) {
+                     Map<String, BigDecimal> quarterlyEps, Map<String, BigDecimal> quarterlyDilutedEps, Map<String, BigDecimal> weightedAverageSharesOutstanding) {
         this.symbol = symbol;
         this.name = name;
         this.price = price;
@@ -45,6 +47,8 @@ public class Stock {
         this.quarterlyNetIncome = quarterlyNetIncome;
         this.quarterlyGrossProfit = quarterlyGrossProfit;
         this.quarterlyEps = quarterlyEps;
+        this.quarterlyDilutedEps = quarterlyDilutedEps;
+        this.weightedAverageSharesOutstanding = weightedAverageSharesOutstanding;
     }
 
     public String getSymbol() { return symbol; }
@@ -61,6 +65,8 @@ public class Stock {
     public Map<String, BigDecimal> getQuarterlyNetIncome() { return quarterlyNetIncome; }
     public Map<String, BigDecimal> getQuarterlyGrossProfit() { return quarterlyGrossProfit; }
     public Map<String, BigDecimal> getQuarterlyEps() { return quarterlyEps; }
+    public Map<String, BigDecimal> getQuarterlyDilutedEps() { return quarterlyDilutedEps; }
+    public Map<String, BigDecimal> getWeightedAverageSharesOutstanding() { return weightedAverageSharesOutstanding; }
 
     private <T extends Comparable<T>> void printAnnualDataWithGrowth(
         String title,
@@ -116,21 +122,27 @@ public class Stock {
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
             List<Map.Entry<String, BigDecimal>> sortedData = data.entrySet().stream()
                 .sorted(Map.Entry.<String, BigDecimal>comparingByKey().reversed())
+                .limit(8)
                 .collect(Collectors.toList());
 
-            for (Map.Entry<String, BigDecimal> currentEntry : sortedData) {
+            for (int i = 0; i < sortedData.size(); i++) {
+                Map.Entry<String, BigDecimal> currentEntry = sortedData.get(i);
                 String formattedValue = analyzer.formatBigNumber(currentEntry.getValue());
                 String growthString = "";
 
-                LocalDate currentDate = LocalDate.parse(currentEntry.getKey(), formatter);
-                LocalDate previousYearDate = currentDate.minusYears(1);
-                String previousYearKey = previousYearDate.format(formatter);
+                boolean shouldCalculateGrowth = !title.contains("EPS") || i < 4;
 
-                if (data.containsKey(previousYearKey)) {
-                    BigDecimal previousYearValue = data.get(previousYearKey);
-                    BigDecimal growth = analyzer.calculateGrowth(currentEntry.getValue(), previousYearValue);
-                    if (growth != null) {
-                        growthString = String.format(" (YoY: %s%.2f%%)", growth.signum() > 0 ? "+" : "", growth);
+                if (shouldCalculateGrowth) {
+                    LocalDate currentDate = LocalDate.parse(currentEntry.getKey(), formatter);
+                    LocalDate previousYearDate = currentDate.minusYears(1);
+                    String previousYearKey = previousYearDate.format(formatter);
+
+                    if (data.containsKey(previousYearKey)) {
+                        BigDecimal previousYearValue = data.get(previousYearKey);
+                        BigDecimal growth = analyzer.calculateGrowth(currentEntry.getValue(), previousYearValue);
+                        if (growth != null) {
+                            growthString = String.format(" (YoY: %s%.2f%%)", growth.signum() > 0 ? "+" : "", growth);
+                        }
                     }
                 }
                 String line = String.format("    %s: $%s%s", currentEntry.getKey(), formattedValue, growthString);
@@ -155,7 +167,8 @@ public class Stock {
         printQuarterlyDataWithYoyGrowth("Quarterly Revenue", getQuarterlyRevenue(), analyzer, writer);
         printQuarterlyDataWithYoyGrowth("Quarterly Net Income", getQuarterlyNetIncome(), analyzer, writer);
         printQuarterlyDataWithYoyGrowth("Quarterly Gross Profit", getQuarterlyGrossProfit(), analyzer, writer);
-        printQuarterlyDataWithYoyGrowth("Quarterly EPS", getQuarterlyEps(), analyzer, writer);
+        printQuarterlyDataWithYoyGrowth("Quarterly EPS (Basic)", getQuarterlyEps(), analyzer, writer);
+        printQuarterlyDataWithYoyGrowth("Quarterly EPS (Diluted)", getQuarterlyDilutedEps(), analyzer, writer);
         writer.println(); // Add a blank line for separation
     }
     

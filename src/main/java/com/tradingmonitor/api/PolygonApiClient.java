@@ -27,6 +27,8 @@ public class PolygonApiClient implements ApiProvider {
     private static final Logger logger = LoggerFactory.getLogger(PolygonApiClient.class);
     private static final String FINANCIALS_API_URL = "https://api.polygon.io/vX/reference/financials?ticker=%s&period_of_report=quarterly&limit=100&apiKey=%s";
     private static final String TICKERS_API_URL = "https://api.polygon.io/v3/reference/tickers?exchange=%s&market=stocks&active=true&apiKey=%s";
+    private static final String TICKER_DETAILS_URL = "https://api.polygon.io/v3/reference/tickers/%s?apiKey=%s";
+    private static final String PREVIOUS_DAY_CLOSE_URL = "https://api.polygon.io/v2/aggs/ticker/%s/prev?apiKey=%s";
     private static final int RATE_LIMIT_WAIT_MS = 60000;
     private static final int MAX_REQUESTS_PER_MINUTE = 60;
     private static final long TIME_WINDOW_MS = 60000;
@@ -135,6 +137,8 @@ public class PolygonApiClient implements ApiProvider {
             Map<String, BigDecimal> quarterlyNetIncome = new TreeMap<>(Collections.reverseOrder());
             Map<String, BigDecimal> quarterlyGrossProfit = new TreeMap<>(Collections.reverseOrder());
             Map<String, BigDecimal> quarterlyEps = new TreeMap<>(Collections.reverseOrder());
+            Map<String, BigDecimal> quarterlyDilutedEps = new TreeMap<>(Collections.reverseOrder());
+            Map<String, BigDecimal> weightedAverageSharesOutstanding = new TreeMap<>(Collections.reverseOrder());
 
             for (JsonElement resultElement : results) {
                 JsonObject result = resultElement.getAsJsonObject();
@@ -155,12 +159,20 @@ public class PolygonApiClient implements ApiProvider {
                     if (incomeStatement.has("basic_earnings_per_share")) {
                         quarterlyEps.put(endDate, incomeStatement.get("basic_earnings_per_share").getAsJsonObject().get("value").getAsBigDecimal());
                     }
+                    if (incomeStatement.has("diluted_earnings_per_share")) {
+                        quarterlyDilutedEps.put(endDate, incomeStatement.get("diluted_earnings_per_share").getAsJsonObject().get("value").getAsBigDecimal());
+                    }
+                }
+                if (financials.has("shares")) {
+                    weightedAverageSharesOutstanding.put(endDate, financials.get("shares").getAsJsonObject().get("value").getAsBigDecimal());
                 }
             }
 
             adjustQ4Data(quarterlyRevenue);
             adjustQ4Data(quarterlyNetIncome);
             adjustQ4Data(quarterlyGrossProfit);
+            adjustQ4Data(quarterlyEps);
+            adjustQ4Data(quarterlyDilutedEps);
 
             Map<String, BigDecimal> filteredQuarterlyRevenue = filterLastNQuarters(quarterlyRevenue, 8);
             Map<String, BigDecimal> filteredQuarterlyNetIncome = filterLastNQuarters(quarterlyNetIncome, 8);
@@ -175,9 +187,42 @@ public class PolygonApiClient implements ApiProvider {
             Map<Integer, BigDecimal> filteredAnnualNetIncome = filterLastNYears(annualNetIncome, 4, currentYear);
             Map<Integer, BigDecimal> filteredAnnualGrossProfit = filterLastNYears(annualGrossProfit, 4, currentYear);
 
-            return new Stock(symbol, null, null, null, null, null, null,
+            // Fetch ticker details
+            rateLimit();
+            urlString = String.format(TICKER_DETAILS_URL, symbol, apiKey);
+            url = new URL(urlString);
+            conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+
+            String name = null;
+            BigDecimal marketCap = null;
+            if (conn.getResponseCode() == 200) {
+                jsonResponse = gson.fromJson(new InputStreamReader(conn.getInputStream()), JsonObject.class);
+                if (jsonResponse.has("results")) {
+                    JsonObject tickerDetails = jsonResponse.getAsJsonObject("results");
+                    name = tickerDetails.get("name").getAsString();
+                    marketCap = tickerDetails.get("market_cap").getAsBigDecimal();
+                }
+            }
+
+            // Fetch previous day's close
+            rateLimit();
+            urlString = String.format(PREVIOUS_DAY_CLOSE_URL, symbol, apiKey);
+            url = new URL(urlString);
+            conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+
+            BigDecimal price = null;
+            if (conn.getResponseCode() == 200) {
+                jsonResponse = gson.fromJson(new InputStreamReader(conn.getInputStream()), JsonObject.class);
+                if (jsonResponse.has("results") && jsonResponse.get("results").getAsJsonArray().size() > 0) {
+                    price = jsonResponse.get("results").getAsJsonArray().get(0).getAsJsonObject().get("c").getAsBigDecimal();
+                }
+            }
+
+            return new Stock(symbol, name, price, null, marketCap, null, null,
                 filteredAnnualRevenue, filteredAnnualNetIncome, filteredAnnualGrossProfit,
-                filteredQuarterlyRevenue, filteredQuarterlyNetIncome, filteredQuarterlyGrossProfit, quarterlyEps);
+                filteredQuarterlyRevenue, filteredQuarterlyNetIncome, filteredQuarterlyGrossProfit, quarterlyEps, quarterlyDilutedEps, weightedAverageSharesOutstanding);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IOException("Interrupted during fetch", e);

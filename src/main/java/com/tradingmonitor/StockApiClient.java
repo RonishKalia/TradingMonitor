@@ -8,9 +8,9 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,13 +54,15 @@ public class StockApiClient {
         BigDecimal peRatio = null;
         BigDecimal marketCap = null;
         BigDecimal volume = null;
-        Map<Integer, BigDecimal> historicalRevenue = new HashMap<>();
-        Map<Integer, BigDecimal> historicalNetIncome = new HashMap<>();
-        Map<Integer, BigDecimal> historicalGrossProfit = new HashMap<>();
-        Map<String, BigDecimal> quarterlyRevenue = new HashMap<>();
-        Map<String, BigDecimal> quarterlyNetIncome = new HashMap<>();
-        Map<String, BigDecimal> quarterlyGrossProfit = new HashMap<>();
-        Map<String, BigDecimal> quarterlyEps = new HashMap<>();
+        Map<Integer, BigDecimal> historicalRevenue = new TreeMap<>(java.util.Collections.reverseOrder());
+        Map<Integer, BigDecimal> historicalNetIncome = new TreeMap<>(java.util.Collections.reverseOrder());
+        Map<Integer, BigDecimal> historicalGrossProfit = new TreeMap<>(java.util.Collections.reverseOrder());
+        Map<String, BigDecimal> quarterlyRevenue = new TreeMap<>(java.util.Collections.reverseOrder());
+        Map<String, BigDecimal> quarterlyNetIncome = new TreeMap<>(java.util.Collections.reverseOrder());
+        Map<String, BigDecimal> quarterlyGrossProfit = new TreeMap<>(java.util.Collections.reverseOrder());
+        Map<String, BigDecimal> quarterlyEps = new TreeMap<>(java.util.Collections.reverseOrder());
+        Map<String, BigDecimal> quarterlyDilutedEps = new TreeMap<>(java.util.Collections.reverseOrder());
+        Map<String, BigDecimal> weightedAverageSharesOutstanding = new TreeMap<>(java.util.Collections.reverseOrder());
 
         for (ApiProvider provider : apiProviders) {
             try {
@@ -78,6 +80,8 @@ public class StockApiClient {
                         quarterlyNetIncome.putAll(stock.getQuarterlyNetIncome());
                         quarterlyGrossProfit.putAll(stock.getQuarterlyGrossProfit());
                         quarterlyEps.putAll(stock.getQuarterlyEps());
+                        quarterlyDilutedEps.putAll(stock.getQuarterlyDilutedEps());
+                        weightedAverageSharesOutstanding.putAll(stock.getWeightedAverageSharesOutstanding());
                     }
                 }
             } catch (Exception e) {
@@ -85,8 +89,8 @@ public class StockApiClient {
             }
         }
 
-        if (price != null && !quarterlyEps.isEmpty()) {
-            BigDecimal ttmEps = quarterlyEps.values().stream()
+        if (price != null && !quarterlyDilutedEps.isEmpty()) {
+            BigDecimal ttmEps = quarterlyDilutedEps.values().stream()
                                         .limit(4)
                                         .reduce(BigDecimal.ZERO, BigDecimal::add);
             if (ttmEps.compareTo(BigDecimal.ZERO) > 0) {
@@ -94,6 +98,6 @@ public class StockApiClient {
             }
         }
 
-        return new Stock(symbol, name, price, peRatio, marketCap, volume, exchange, historicalRevenue, historicalNetIncome, historicalGrossProfit, quarterlyRevenue, quarterlyNetIncome, quarterlyGrossProfit, quarterlyEps);
+        return new Stock(symbol, name, price, peRatio, marketCap, volume, exchange, historicalRevenue, historicalNetIncome, historicalGrossProfit, quarterlyRevenue, quarterlyNetIncome, quarterlyGrossProfit, quarterlyEps, quarterlyDilutedEps, weightedAverageSharesOutstanding);
     }
 }

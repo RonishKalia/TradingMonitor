@@ -13,34 +13,70 @@ import java.net.URL;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class PolygonApiClient implements ApiProvider {
 
+    private static final Logger logger = LoggerFactory.getLogger(PolygonApiClient.class);
     private static final String FINANCIALS_API_URL = "https://api.polygon.io/vX/reference/financials?ticker=%s&period_of_report=quarterly&limit=100&apiKey=%s";
-    private static final String TICKERS_API_URL = "https://api.polygon.io/v3/reference/tickers?exchange=%s&market=stocks&active=true&limit=1000&apiKey=%s";
+    private static final String TICKERS_API_URL = "https://api.polygon.io/v3/reference/tickers?exchange=%s&market=stocks&active=true&apiKey=%s";
+    private static final int RATE_LIMIT_WAIT_MS = 60000;
+    private static final int MAX_REQUESTS_PER_MINUTE = 60;
+    private static final long TIME_WINDOW_MS = 60000;
+
     private final String apiKey;
+    private final BlockingQueue<Long> requestTimestamps;
 
     public PolygonApiClient(String apiKey) {
         this.apiKey = apiKey;
+        this.requestTimestamps = new ArrayBlockingQueue<>(MAX_REQUESTS_PER_MINUTE);
     }
 
-    public List<String> fetchStockSymbols(String exchange) throws IOException {
+    private void rateLimit() throws InterruptedException {
+        long currentTime = System.currentTimeMillis();
+        if (requestTimestamps.size() == MAX_REQUESTS_PER_MINUTE) {
+            long oldestTimestamp = requestTimestamps.peek();
+            long elapsedTime = currentTime - oldestTimestamp;
+            if (elapsedTime < TIME_WINDOW_MS) {
+                long waitTime = TIME_WINDOW_MS - elapsedTime;
+                logger.warn("Rate limit reached for Polygon. Waiting for {} ms.", waitTime);
+                Thread.sleep(waitTime);
+            }
+            requestTimestamps.poll();
+        }
+        requestTimestamps.offer(currentTime);
+    }
+
+    public List<String> fetchStockSymbols(String exchange, Integer limit) throws IOException {
         List<String> symbols = new ArrayList<>();
-        String nextUrl = String.format(TICKERS_API_URL, exchange, apiKey);
+        String baseUrl = String.format(TICKERS_API_URL, exchange, apiKey);
+        if (limit != null) {
+            baseUrl += "&limit=" + limit;
+        } else {
+            baseUrl += "&limit=1000"; // Default limit if not specified
+        }
+        String nextUrl = baseUrl;
 
         while (nextUrl != null) {
             try {
+                rateLimit();
                 URL url = new URL(nextUrl);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
 
                 if (conn.getResponseCode() != 200) {
+                    if (conn.getResponseCode() == 429) { // Too Many Requests
+                        logger.warn("Rate limit hit for Polygon.io tickers. Retrying in 60 seconds...");
+                        Thread.sleep(RATE_LIMIT_WAIT_MS);
+                        continue; // Retry the same URL
+                    }
                     throw new IOException("Failed to fetch tickers from Polygon.io: " + conn.getResponseCode() + " " + conn.getResponseMessage());
                 }
 
@@ -58,8 +94,9 @@ public class PolygonApiClient implements ApiProvider {
                 } else {
                     nextUrl = null;
                 }
-            } catch (IOException e) {
-                throw new IOException("Failed to fetch tickers from Polygon.io", e);
+                if (limit != null && symbols.size() >= limit) {
+                    return symbols.subList(0, limit);
+                }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 throw new IOException("Interrupted while fetching tickers from Polygon.io", e);
@@ -68,96 +105,83 @@ public class PolygonApiClient implements ApiProvider {
         return symbols;
     }
 
+    public List<String> fetchStockSymbols(String exchange) throws IOException {
+        return fetchStockSymbols(exchange, null);
+    }
+
     @Override
     public Stock fetchStockData(String symbol, String region) throws IOException {
-        int maxRetries = 3;
-        int retryCount = 0;
-        while (retryCount < maxRetries) {
-            try {
-                String urlString = String.format(FINANCIALS_API_URL, symbol, apiKey);
-                URL url = new URL(urlString);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("GET");
+        try {
+            rateLimit();
+            String urlString = String.format(FINANCIALS_API_URL, symbol, apiKey);
+            URL url = new URL(urlString);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
 
-                if (conn.getResponseCode() != 200) {
-                    if (conn.getResponseCode() == 429) { // Too Many Requests
-                        System.out.println("Rate limit hit for Polygon.io. Retrying in 60 seconds...");
-                        Thread.sleep(60000);
-                        retryCount++;
-                        continue;
-                    }
-                    throw new IOException("Failed to fetch data from Polygon.io: " + conn.getResponseMessage());
+            if (conn.getResponseCode() != 200) {
+                if (conn.getResponseCode() == 429) { // Too Many Requests
+                    logger.warn("Rate limit hit for Polygon.io. Retrying in 60 seconds...");
+                    Thread.sleep(RATE_LIMIT_WAIT_MS);
+                    return fetchStockData(symbol, region); // Retry
                 }
-
-                Gson gson = new Gson();
-                JsonObject jsonResponse = gson.fromJson(new InputStreamReader(conn.getInputStream()), JsonObject.class);
-                JsonArray results = jsonResponse.getAsJsonArray("results");
-
-                Map<String, BigDecimal> quarterlyRevenue = new TreeMap<>(Collections.reverseOrder());
-                Map<String, BigDecimal> quarterlyNetIncome = new TreeMap<>(Collections.reverseOrder());
-                Map<String, BigDecimal> quarterlyGrossProfit = new TreeMap<>(Collections.reverseOrder());
-
-                for (JsonElement resultElement : results) {
-                    JsonObject result = resultElement.getAsJsonObject();
-                    String endDate = result.get("end_date").getAsString();
-                    JsonObject financials = result.getAsJsonObject("financials");
-                    JsonObject incomeStatement = financials.getAsJsonObject("income_statement");
-
-                    if (incomeStatement != null) {
-                        if (incomeStatement.has("revenues")) {
-                            quarterlyRevenue.put(endDate, incomeStatement.get("revenues").getAsJsonObject().get("value").getAsBigDecimal());
-                        }
-                        if (incomeStatement.has("net_income_loss")) {
-                            quarterlyNetIncome.put(endDate, incomeStatement.get("net_income_loss").getAsJsonObject().get("value").getAsBigDecimal());
-                        }
-                        if (incomeStatement.has("gross_profit")) {
-                            quarterlyGrossProfit.put(endDate, incomeStatement.get("gross_profit").getAsJsonObject().get("value").getAsBigDecimal());
-                        }
-                    }
-                }
-
-                // Adjust Q4 data
-                adjustQ4Data(quarterlyRevenue);
-                adjustQ4Data(quarterlyNetIncome);
-                adjustQ4Data(quarterlyGrossProfit);
-
-                // Filter quarterly data to the last 2 years (8 quarters)
-                Map<String, BigDecimal> filteredQuarterlyRevenue = filterLastNQuarters(quarterlyRevenue, 8);
-                Map<String, BigDecimal> filteredQuarterlyNetIncome = filterLastNQuarters(quarterlyNetIncome, 8);
-                Map<String, BigDecimal> filteredQuarterlyGrossProfit = filterLastNQuarters(quarterlyGrossProfit, 8);
-
-                Map<Integer, BigDecimal> annualRevenue = deriveAnnualData(quarterlyRevenue); // derive from all quarterly data
-                Map<Integer, BigDecimal> annualNetIncome = deriveAnnualData(quarterlyNetIncome);
-                Map<Integer, BigDecimal> annualGrossProfit = deriveAnnualData(quarterlyGrossProfit);
-
-                // Filter annual data to the last 4 years
-                int currentYear = LocalDate.now().getYear();
-                Map<Integer, BigDecimal> filteredAnnualRevenue = filterLastNYears(annualRevenue, 4, currentYear);
-                Map<Integer, BigDecimal> filteredAnnualNetIncome = filterLastNYears(annualNetIncome, 4, currentYear);
-                Map<Integer, BigDecimal> filteredAnnualGrossProfit = filterLastNYears(annualGrossProfit, 4, currentYear);
-
-                return new Stock(symbol, null, null, null, null, null, null,
-                    filteredAnnualRevenue, filteredAnnualNetIncome, filteredAnnualGrossProfit,
-                    filteredQuarterlyRevenue, filteredQuarterlyNetIncome, filteredQuarterlyGrossProfit);
-            } catch (IOException e) {
-                if (e.getMessage().contains("Too Many Requests")) {
-                    System.out.println("Rate limit hit for Polygon.io. Retrying in 60 seconds...");
-                    try {
-                        Thread.sleep(60000);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                        throw new IOException("Interrupted during rate limit wait", ie);
-                    }
-                    retryCount++;
-                } else {
-                    throw e;
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new IOException("Interrupted during fetch", e);
+                throw new IOException("Failed to fetch data from Polygon.io: " + conn.getResponseMessage());
             }
+
+            Gson gson = new Gson();
+            JsonObject jsonResponse = gson.fromJson(new InputStreamReader(conn.getInputStream()), JsonObject.class);
+            JsonArray results = jsonResponse.getAsJsonArray("results");
+
+            Map<String, BigDecimal> quarterlyRevenue = new TreeMap<>(Collections.reverseOrder());
+            Map<String, BigDecimal> quarterlyNetIncome = new TreeMap<>(Collections.reverseOrder());
+            Map<String, BigDecimal> quarterlyGrossProfit = new TreeMap<>(Collections.reverseOrder());
+            Map<String, BigDecimal> quarterlyEps = new TreeMap<>(Collections.reverseOrder());
+
+            for (JsonElement resultElement : results) {
+                JsonObject result = resultElement.getAsJsonObject();
+                String endDate = result.get("end_date").getAsString();
+                JsonObject financials = result.getAsJsonObject("financials");
+                JsonObject incomeStatement = financials.getAsJsonObject("income_statement");
+
+                if (incomeStatement != null) {
+                    if (incomeStatement.has("revenues")) {
+                        quarterlyRevenue.put(endDate, incomeStatement.get("revenues").getAsJsonObject().get("value").getAsBigDecimal());
+                    }
+                    if (incomeStatement.has("net_income_loss")) {
+                        quarterlyNetIncome.put(endDate, incomeStatement.get("net_income_loss").getAsJsonObject().get("value").getAsBigDecimal());
+                    }
+                    if (incomeStatement.has("gross_profit")) {
+                        quarterlyGrossProfit.put(endDate, incomeStatement.get("gross_profit").getAsJsonObject().get("value").getAsBigDecimal());
+                    }
+                    if (incomeStatement.has("basic_earnings_per_share")) {
+                        quarterlyEps.put(endDate, incomeStatement.get("basic_earnings_per_share").getAsJsonObject().get("value").getAsBigDecimal());
+                    }
+                }
+            }
+
+            adjustQ4Data(quarterlyRevenue);
+            adjustQ4Data(quarterlyNetIncome);
+            adjustQ4Data(quarterlyGrossProfit);
+
+            Map<String, BigDecimal> filteredQuarterlyRevenue = filterLastNQuarters(quarterlyRevenue, 8);
+            Map<String, BigDecimal> filteredQuarterlyNetIncome = filterLastNQuarters(quarterlyNetIncome, 8);
+            Map<String, BigDecimal> filteredQuarterlyGrossProfit = filterLastNQuarters(quarterlyGrossProfit, 8);
+
+            Map<Integer, BigDecimal> annualRevenue = deriveAnnualData(quarterlyRevenue);
+            Map<Integer, BigDecimal> annualNetIncome = deriveAnnualData(quarterlyNetIncome);
+            Map<Integer, BigDecimal> annualGrossProfit = deriveAnnualData(quarterlyGrossProfit);
+
+            int currentYear = LocalDate.now().getYear();
+            Map<Integer, BigDecimal> filteredAnnualRevenue = filterLastNYears(annualRevenue, 4, currentYear);
+            Map<Integer, BigDecimal> filteredAnnualNetIncome = filterLastNYears(annualNetIncome, 4, currentYear);
+            Map<Integer, BigDecimal> filteredAnnualGrossProfit = filterLastNYears(annualGrossProfit, 4, currentYear);
+
+            return new Stock(symbol, null, null, null, null, null, null,
+                filteredAnnualRevenue, filteredAnnualNetIncome, filteredAnnualGrossProfit,
+                filteredQuarterlyRevenue, filteredQuarterlyNetIncome, filteredQuarterlyGrossProfit, quarterlyEps);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Interrupted during fetch", e);
         }
-        throw new IOException("Failed to fetch data from Polygon.io after " + maxRetries + " retries.");
     }
 
     private void adjustQ4Data(Map<String, BigDecimal> quarterlyData) {
@@ -194,7 +218,7 @@ public class PolygonApiClient implements ApiProvider {
     private Map<String, BigDecimal> filterLastNQuarters(Map<String, BigDecimal> quarterlyData, int quarters) {
         return quarterlyData.entrySet().stream()
                 .limit(quarters)
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new));
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, java.util.LinkedHashMap::new));
     }
 
     private Map<Integer, BigDecimal> filterLastNYears(Map<Integer, BigDecimal> annualData, int years, int currentYear) {

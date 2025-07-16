@@ -2,6 +2,7 @@ package com.tradingmonitor.api;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tradingmonitor.Stock;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URI;
@@ -12,10 +13,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.tradingmonitor.Stock;
 
 public class FinnhubApiClient implements ApiProvider {
 
@@ -23,20 +24,39 @@ public class FinnhubApiClient implements ApiProvider {
     private static final String BASE_URL = "https://finnhub.io/api/v1";
     private static final String QUOTE_URL_FORMAT = BASE_URL + "/quote?symbol=%s&token=%s";
     private static final String PROFILE_URL_FORMAT = BASE_URL + "/stock/profile2?symbol=%s&token=%s";
-    private static final String METRIC_URL_FORMAT = BASE_URL + "/stock/metric?symbol=%s&metric=all&token=%s";
     private static final String SYMBOL_URL_FORMAT = BASE_URL + "/stock/symbol?exchange=%s&token=%s";
+    private static final int MAX_REQUESTS_PER_MINUTE = 5;
+    private static final long TIME_WINDOW_MS = 60000;
 
     private final String apiKey;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
+    private final BlockingQueue<Long> requestTimestamps;
 
     public FinnhubApiClient(String apiKey) {
         this.apiKey = apiKey;
         this.httpClient = HttpClient.newHttpClient();
         this.objectMapper = new ObjectMapper();
+        this.requestTimestamps = new ArrayBlockingQueue<>(MAX_REQUESTS_PER_MINUTE);
+    }
+
+    private void rateLimit() throws InterruptedException {
+        long currentTime = System.currentTimeMillis();
+        if (requestTimestamps.size() == MAX_REQUESTS_PER_MINUTE) {
+            long oldestTimestamp = requestTimestamps.peek();
+            long elapsedTime = currentTime - oldestTimestamp;
+            if (elapsedTime < TIME_WINDOW_MS) {
+                long waitTime = TIME_WINDOW_MS - elapsedTime;
+                logger.warn("Rate limit reached for Finnhub. Waiting for {} ms.", waitTime);
+                Thread.sleep(waitTime);
+            }
+            requestTimestamps.poll();
+        }
+        requestTimestamps.offer(currentTime);
     }
 
     private HttpResponse<String> sendRequest(String url) throws IOException, InterruptedException {
+        rateLimit();
         HttpRequest request = HttpRequest.newBuilder().uri(URI.create(url)).build();
         return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
     }
@@ -78,28 +98,6 @@ public class FinnhubApiClient implements ApiProvider {
             throw new IOException("Interrupted while fetching profile for " + symbol, e);
         }
         return profile;
-    }
-
-    public Map<String, BigDecimal> fetchMetrics(String symbol) throws IOException {
-        Map<String, BigDecimal> metrics = new HashMap<>();
-        try {
-            String url = String.format(METRIC_URL_FORMAT, symbol, apiKey);
-            HttpResponse<String> response = sendRequest(url);
-            if (response.statusCode() == 200) {
-                JsonNode rootNode = objectMapper.readTree(response.body());
-                JsonNode metricNode = rootNode.get("metric");
-                if (metricNode != null && metricNode.isObject()) {
-                    metrics.put("peRatio", toBigDecimal(metricNode.get("peTTM")));
-                }
-            } else {
-                logger.warn("Failed to fetch metrics data for {}: Status {}", symbol, response.statusCode());
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            logger.error("Interrupted while fetching metrics for {}", symbol, e);
-            throw new IOException("Interrupted while fetching metrics for " + symbol, e);
-        }
-        return metrics;
     }
 
     public List<String> fetchStockSymbols(String exchange) throws IOException {
@@ -148,7 +146,6 @@ public class FinnhubApiClient implements ApiProvider {
         String name = null;
         BigDecimal price = null;
         BigDecimal marketCap = null;
-        BigDecimal peRatio = null;
 
         Map<String, BigDecimal> quote = fetchQuote(symbol);
         price = quote.get("price");
@@ -157,9 +154,6 @@ public class FinnhubApiClient implements ApiProvider {
         name = (String) profile.get("name");
         marketCap = (BigDecimal) profile.get("marketCapitalization");
 
-        Map<String, BigDecimal> metrics = fetchMetrics(symbol);
-        peRatio = metrics.get("peRatio");
-
-        return new Stock(symbol, name, price, peRatio, marketCap, null, exchange, null, null, null, null, null, null);
+        return new Stock(symbol, name, price, null, marketCap, null, exchange, null, null, null, null, null, null, null);
     }
 }

@@ -18,13 +18,13 @@ public class StockAnalyzer {
     }
 
     public List<Stock> analyzeUsStocks(boolean isTesting) throws IOException {
-        List<String> symbols = stockApiClient.fetchUsStockSymbols();
+        List<String> symbols = stockApiClient.fetchUsStockSymbols(isTesting);
         if (symbols == null || symbols.isEmpty()) {
             throw new IOException("No symbols found for US stocks.");
         }
 
         if (isTesting) {
-            symbols = symbols.subList(0, Math.min(symbols.size(), 10));
+            System.out.println("--- Analyzing 10 stocks in test mode ---");
         }
 
         System.out.println("Analyzing " + symbols.size() + " US stocks...");

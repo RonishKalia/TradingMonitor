@@ -138,6 +138,6 @@ public class FinancialModelingPrepApiClient implements ApiProvider {
         Map<String, BigDecimal> metrics = fetchKeyMetrics(symbol);
         peRatio = metrics.get("peRatioTTM");
 
-        return new Stock(symbol, null, null, peRatio, null, null, exchange, null, null, null, null, null, null);
+        return new Stock(symbol, null, null, peRatio, null, null, exchange, null, null, null, null, null, null, null);
     }
 }

@@ -27,22 +27,23 @@ public class StockDashboard {
         StringBuilder sb = new StringBuilder();
         sb.append("<html><head><title>Stock Dashboard</title>");
         sb.append("<link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css\">");
-        sb.append("<link href=\"https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap\" rel=\"stylesheet\">");
+        sb.append("<link href=\"https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;400;500&display=swap\" rel=\"stylesheet\">");
         sb.append("<script src=\"https://cdn.jsdelivr.net/npm/chart.js\"></script>");
         sb.append("<script src=\"https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0\"></script>");
         sb.append("<style>");
-        sb.append("body { background-color: #f8f9fa; font-family: 'Roboto', sans-serif; }");
-        sb.append("nav { background-color: #1e2a38; box-shadow: none; }");
+        sb.append("body { background-color: #282a36; font-family: 'Roboto Mono', monospace; color: #f8f8f2; }");
+        sb.append("nav { background-color: #21222c; box-shadow: none; }");
         sb.append(".container { width: 90%; max-width: 1800px; margin-top: 40px; margin-bottom: 40px; }");
-        sb.append(".card { border-radius: 16px; box-shadow: 0 8px 24px rgba(149, 157, 165, 0.2); border: none; }");
+        sb.append(".card { background-color: #44475a; border-radius: 16px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); border: 1px solid #6272a4; }");
         sb.append(".card .card-content { padding: 32px; }");
-        sb.append(".card .card-title { font-weight: 500; }");
-        sb.append(".stat-value { font-size: 2.2rem; font-weight: 500; color: #2c3e50; }");
-        sb.append(".stat-label { font-size: 0.9rem; color: #90a4ae; text-transform: uppercase; }");
-        sb.append(".tabs .tab a { color: #1e2a38; }");
-        sb.append(".tabs .tab a.active { font-weight: 500; }");
-        sb.append(".tabs .indicator { background-color: #2962ff; }");
-        sb.append(".chart-wrapper { background: #ffffff; border-radius: 12px; padding: 24px; margin-top: 20px; height: 450px; }");
+        sb.append(".card .card-title { font-weight: 500; color: #ff79c6; }");
+        sb.append(".stat-value { font-size: 2.2rem; font-weight: 500; color: #50fa7b; }");
+        sb.append(".stat-label { font-size: 0.9rem; color: #6272a4; text-transform: uppercase; }");
+        sb.append(".tabs { background-color: #44475a; }");
+        sb.append(".tabs .tab a { color: #f8f8f2; }");
+        sb.append(".tabs .tab a.active { color: #ff79c6; font-weight: 500; }");
+        sb.append(".tabs .indicator { background-color: #ff79c6; }");
+        sb.append(".chart-wrapper { background: #282a36; border-radius: 12px; padding: 24px; margin-top: 20px; height: 450px; border: 1px solid #6272a4; }");
         sb.append("</style>");
         sb.append("</head><body>");
 
@@ -67,7 +68,7 @@ public class StockDashboard {
             sb.append("</ul>");
             sb.append("</div>");
 
-            sb.append("<div class=\"card-content grey lighten-5\">");
+            sb.append("<div class=\"card-content grey darken-3\">");
             sb.append("<div id=\"historical-").append(stock.getSymbol()).append("\">").append(createChartTabs(stock, "historical")).append("</div>");
             sb.append("<div id=\"quarterly-").append(stock.getSymbol()).append("\">").append(createChartTabs(stock, "quarterly")).append("</div>");
             sb.append("</div>");
@@ -96,16 +97,16 @@ public class StockDashboard {
             String symbol = stock.getSymbol();
             sb.append("function initHistoricalCharts_").append(symbol).append("() {");
             sb.append("if (Chart.getChart('historical-revenue-chart-").append(symbol).append("')) return;");
-            sb.append(createChartScript(symbol, "historical-revenue-chart", "Historical Revenue", stock.getHistoricalRevenue(), analyzer, "'#42a5f5'", "'#1e88e5'"));
-            sb.append(createChartScript(symbol, "historical-income-chart", "Historical Net Income", stock.getHistoricalNetIncome(), analyzer, "'#66bb6a'", "'#43a047'"));
-            sb.append(createChartScript(symbol, "historical-gross-profit-chart", "Historical Gross Profit", stock.getHistoricalGrossProfit(), analyzer, "'#ab47bc'", "'#8e24aa'"));
+            sb.append(createChartScript(symbol, "historical-revenue-chart", "Historical Revenue", stock.getHistoricalRevenue(), analyzer, "'rgb(255, 121, 198)'", "'rgba(255, 121, 198, 1)'"));
+            sb.append(createChartScript(symbol, "historical-income-chart", "Historical Net Income", stock.getHistoricalNetIncome(), analyzer, "'rgb(80, 250, 123)'", "'rgba(80, 250, 123, 1)'"));
+            sb.append(createChartScript(symbol, "historical-gross-profit-chart", "Historical Gross Profit", stock.getHistoricalGrossProfit(), analyzer, "'rgb(189, 147, 249)'", "'rgba(189, 147, 249, 1)'"));
             sb.append("}");
 
             sb.append("function initQuarterlyCharts_").append(symbol).append("() {");
             sb.append("if (Chart.getChart('quarterly-revenue-chart-").append(symbol).append("')) return;");
-            sb.append(createChartScript(symbol, "quarterly-revenue-chart", "Quarterly Revenue", stock.getQuarterlyRevenue(), analyzer, "'#42a5f5'", "'#1e88e5'"));
-            sb.append(createChartScript(symbol, "quarterly-income-chart", "Quarterly Net Income", stock.getQuarterlyNetIncome(), analyzer, "'#66bb6a'", "'#43a047'"));
-            sb.append(createChartScript(symbol, "quarterly-gross-profit-chart", "Quarterly Gross Profit", stock.getQuarterlyGrossProfit(), analyzer, "'#ab47bc'", "'#8e24aa'"));
+            sb.append(createChartScript(symbol, "quarterly-revenue-chart", "Quarterly Revenue", stock.getQuarterlyRevenue(), analyzer, "'rgb(255, 121, 198)'", "'rgba(255, 121, 198, 1)'"));
+            sb.append(createChartScript(symbol, "quarterly-income-chart", "Quarterly Net Income", stock.getQuarterlyNetIncome(), analyzer, "'rgb(80, 250, 123)'", "'rgba(80, 250, 123, 1)'"));
+            sb.append(createChartScript(symbol, "quarterly-gross-profit-chart", "Quarterly Gross Profit", stock.getQuarterlyGrossProfit(), analyzer, "'rgb(189, 147, 249)'", "'rgba(189, 147, 249, 1)'"));
             sb.append("}");
         }
 
@@ -228,7 +229,7 @@ public class StockDashboard {
                     "datalabels: {" +
                         "anchor: 'end'," +
                         "align: 'top'," +
-                        "color: '#555'," +
+                        "color: '#f8f8f2'," +
                         "font: { weight: '500' }," +
                         "formatter: function(value, context) {" +
                             "var growth = [%s][context.dataIndex];" +
@@ -237,8 +238,8 @@ public class StockDashboard {
                     "}" +
                 "}," +
                 "scales: { " +
-                    "y: { beginAtZero: true, grid: { drawBorder: false }, ticks: { callback: function(value) { return value + 'M'; } } }, " +
-                    "x: { grid: { display: false } } " +
+                    "y: { beginAtZero: true, grid: { color: '#6272a4', drawBorder: false }, ticks: { color: '#f8f8f2', callback: function(value) { return value + 'M'; } } }, " +
+                    "x: { grid: { display: false }, ticks: { color: '#f8f8f2' } } " +
                 "}" +
             "}" +
             "});",

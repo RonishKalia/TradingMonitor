@@ -37,13 +37,15 @@ public class StockDashboard {
         sb.append(".card { background-color: #44475a; border-radius: 16px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); border: 1px solid #6272a4; }");
         sb.append(".card .card-content { padding: 32px; }");
         sb.append(".card .card-title { font-weight: 500; color: #ff79c6; }");
-        sb.append(".stat-value { font-size: 2.2rem; font-weight: 500; color: #50fa7b; }");
+        sb.append(".stat-value { font-size: 2.2rem; font-weight: 500; color: #8be9fd; }");
         sb.append(".stat-label { font-size: 0.9rem; color: #6272a4; text-transform: uppercase; }");
-        sb.append(".tabs { background-color: #44475a; }");
-        sb.append(".tabs .tab a { color: #f8f8f2; }");
-        sb.append(".tabs .tab a.active { color: #ff79c6; font-weight: 500; }");
-        sb.append(".tabs .indicator { background-color: #ff79c6; }");
+        sb.append(".tabs { background-color: transparent; }");
+        sb.append(".tabs .tab a { color: #bd93f9; transition: background-color 0.3s ease; border-radius: 8px; }");
+        sb.append(".tabs .tab a:hover { background-color: rgba(98, 114, 164, 0.2); }");
+        sb.append(".tabs .tab a.active { background-color: #6272a4; color: #f8f8f2; font-weight: 500; }");
+        sb.append(".tabs .indicator { display: none; }");
         sb.append(".chart-wrapper { background: #282a36; border-radius: 12px; padding: 24px; margin-top: 20px; height: 450px; border: 1px solid #6272a4; }");
+        sb.append(".chart-title { text-align: center; font-size: 1.1rem; font-weight: 500; color: #bd93f9; margin-bottom: 15px; }");
         sb.append("</style>");
         sb.append("</head><body>");
 
@@ -59,16 +61,13 @@ public class StockDashboard {
             sb.append("<div class=\"col s6 center-align\"><p class=\"stat-value\">").append(stock.getPeRatio()).append("</p><p class=\"stat-label\">P/E Ratio</p></div>");
             sb.append("<div class=\"col s6 center-align\"><p class=\"stat-value\">").append(analyzer.formatBigNumber(stock.getMarketCap())).append("</p><p class=\"stat-label\">Market Cap</p></div>");
             sb.append("</div>");
-            sb.append("</div>");
-
-            sb.append("<div class=\"card-tabs\">");
-            sb.append("<ul id=\"tabs-").append(stock.getSymbol()).append("\" class=\"tabs tabs-fixed-width\">");
-            sb.append("<li class=\"tab\"><a class=\"active\" href=\"#historical-").append(stock.getSymbol()).append("\">Historical</a></li>");
-            sb.append("<li class=\"tab\"><a href=\"#quarterly-").append(stock.getSymbol()).append("\">Quarterly</a></li>");
+            sb.append("<ul id=\"tabs-").append(stock.getSymbol()).append("\" class=\"tabs\">");
+            sb.append("<li class=\"tab col s6\"><a class=\"active\" href=\"#historical-").append(stock.getSymbol()).append("\">Historical</a></li>");
+            sb.append("<li class=\"tab col s6\"><a href=\"#quarterly-").append(stock.getSymbol()).append("\">Quarterly</a></li>");
             sb.append("</ul>");
             sb.append("</div>");
 
-            sb.append("<div class=\"card-content grey darken-3\">");
+            sb.append("<div class=\"card-content grey darken-3\" style=\"padding-top: 0;\">");
             sb.append("<div id=\"historical-").append(stock.getSymbol()).append("\">").append(createChartTabs(stock, "historical")).append("</div>");
             sb.append("<div id=\"quarterly-").append(stock.getSymbol()).append("\">").append(createChartTabs(stock, "quarterly")).append("</div>");
             sb.append("</div>");
@@ -97,16 +96,16 @@ public class StockDashboard {
             String symbol = stock.getSymbol();
             sb.append("function initHistoricalCharts_").append(symbol).append("() {");
             sb.append("if (Chart.getChart('historical-revenue-chart-").append(symbol).append("')) return;");
-            sb.append(createChartScript(symbol, "historical-revenue-chart", "Historical Revenue", stock.getHistoricalRevenue(), analyzer, "'rgb(255, 121, 198)'", "'rgba(255, 121, 198, 1)'"));
-            sb.append(createChartScript(symbol, "historical-income-chart", "Historical Net Income", stock.getHistoricalNetIncome(), analyzer, "'rgb(80, 250, 123)'", "'rgba(80, 250, 123, 1)'"));
-            sb.append(createChartScript(symbol, "historical-gross-profit-chart", "Historical Gross Profit", stock.getHistoricalGrossProfit(), analyzer, "'rgb(189, 147, 249)'", "'rgba(189, 147, 249, 1)'"));
+            sb.append(createChartScript(symbol, "historical-revenue-chart", "Historical Revenue", stock.getHistoricalRevenue(), analyzer, "'#ff79c6'", "'#ff79c6'"));
+            sb.append(createChartScript(symbol, "historical-income-chart", "Historical Net Income", stock.getHistoricalNetIncome(), analyzer, "'#82b184'", "'#82b184'"));
+            sb.append(createChartScript(symbol, "historical-gross-profit-chart", "Historical Gross Profit", stock.getHistoricalGrossProfit(), analyzer, "'#bd93f9'", "'#bd93f9'"));
             sb.append("}");
 
             sb.append("function initQuarterlyCharts_").append(symbol).append("() {");
             sb.append("if (Chart.getChart('quarterly-revenue-chart-").append(symbol).append("')) return;");
-            sb.append(createChartScript(symbol, "quarterly-revenue-chart", "Quarterly Revenue", stock.getQuarterlyRevenue(), analyzer, "'rgb(255, 121, 198)'", "'rgba(255, 121, 198, 1)'"));
-            sb.append(createChartScript(symbol, "quarterly-income-chart", "Quarterly Net Income", stock.getQuarterlyNetIncome(), analyzer, "'rgb(80, 250, 123)'", "'rgba(80, 250, 123, 1)'"));
-            sb.append(createChartScript(symbol, "quarterly-gross-profit-chart", "Quarterly Gross Profit", stock.getQuarterlyGrossProfit(), analyzer, "'rgb(189, 147, 249)'", "'rgba(189, 147, 249, 1)'"));
+            sb.append(createChartScript(symbol, "quarterly-revenue-chart", "Quarterly Revenue", stock.getQuarterlyRevenue(), analyzer, "'#ff79c6'", "'#ff79c6'"));
+            sb.append(createChartScript(symbol, "quarterly-income-chart", "Quarterly Net Income", stock.getQuarterlyNetIncome(), analyzer, "'#82b184'", "'#82b184'"));
+            sb.append(createChartScript(symbol, "quarterly-gross-profit-chart", "Quarterly Gross Profit", stock.getQuarterlyGrossProfit(), analyzer, "'#bd93f9'", "'#bd93f9'"));
             sb.append("}");
         }
 
@@ -119,11 +118,11 @@ public class StockDashboard {
         StringBuilder sb = new StringBuilder();
         String symbol = stock.getSymbol();
         sb.append("<div class=\"row\">");
-        sb.append("<div class=\"col s12 l6\"><div class=\"chart-wrapper\"><canvas id=\"").append(type).append("-revenue-chart-").append(symbol).append("\"></canvas></div></div>");
-        sb.append("<div class=\"col s12 l6\"><div class=\"chart-wrapper\"><canvas id=\"").append(type).append("-income-chart-").append(symbol).append("\"></canvas></div></div>");
+        sb.append("<div class=\"col s12 l6\"><div class=\"chart-wrapper\"><p class=\"chart-title\">Revenue</p><canvas id=\"").append(type).append("-revenue-chart-").append(symbol).append("\"></canvas></div></div>");
+        sb.append("<div class=\"col s12 l6\"><div class=\"chart-wrapper\"><p class=\"chart-title\">Net Income</p><canvas id=\"").append(type).append("-income-chart-").append(symbol).append("\"></canvas></div></div>");
         sb.append("</div>");
         sb.append("<div class=\"row\">");
-        sb.append("<div class=\"col s12 l6 offset-l3\"><div class=\"chart-wrapper\"><canvas id=\"").append(type).append("-gross-profit-chart-").append(symbol).append("\"></canvas></div></div>");
+        sb.append("<div class=\"col s12 l6 offset-l3\"><div class=\"chart-wrapper\"><p class=\"chart-title\">Gross Profit</p><canvas id=\"").append(type).append("-gross-profit-chart-").append(symbol).append("\"></canvas></div></div>");
         sb.append("</div>");
         return sb.toString();
     }
@@ -226,6 +225,9 @@ public class StockDashboard {
                 "layout: { padding: { top: 30 } }," +
                 "plugins: {" +
                     "legend: { display: false }," +
+                    "tooltip: { " +
+                        "backgroundColor: '#21222c', titleFont: { size: 14 }, bodyFont: { size: 12 }, footerFont: { size: 10 }, padding: 12, boxPadding: 6 " +
+                    "}," +
                     "datalabels: {" +
                         "anchor: 'end'," +
                         "align: 'top'," +
@@ -240,8 +242,7 @@ public class StockDashboard {
                 "scales: { " +
                     "y: { beginAtZero: true, grid: { color: '#6272a4', drawBorder: false }, ticks: { color: '#f8f8f2', callback: function(value) { return value + 'M'; } } }, " +
                     "x: { grid: { display: false }, ticks: { color: '#f8f8f2' } } " +
-                "}" +
-            "}" +
+                "} }" +
             "});",
             chartId, symbol, labels, label, values, bgColor, borderColor, growthData
         );

@@ -24,23 +24,26 @@ public class Main {
     public void runStockAnalysis() {
         StockApiClient apiClient = new StockApiClient(FINNHUB_API_KEY, FMP_API_KEY, ALPHA_VANTAGE_API_KEY, POLYGON_API_KEY);
         StockAnalyzer analyzer = new StockAnalyzer(apiClient);
+        StockDashboard dashboard = new StockDashboard();
 
         System.out.println("\n=== TRADING MONITOR - STOCK ANALYSIS ===");
 
         try (PrintWriter writer = new PrintWriter(new BufferedWriter(new FileWriter(OUTPUT_FILE_PATH)))) {
+            List<Stock> stockList;
             if (IS_SINGLE_STOCK_TEST_MODE) {
                 System.out.println("\n--- RUNNING IN SINGLE STOCK TESTING MODE ---");
-                List<Stock> stockList = analyzer.analyzeSingleStock(SINGLE_STOCK_SYMBOL);
+                stockList = analyzer.analyzeSingleStock(SINGLE_STOCK_SYMBOL);
                 printStockDetails(stockList, analyzer, writer);
             } else {
                 if (IS_TESTING_MODE) {
                     System.out.println("\n--- RUNNING IN TESTING MODE ---");
                 }
                 System.out.println("\nStarting analysis of US stocks...");
-                List<Stock> stockList = analyzer.analyzeUsStocks(IS_TESTING_MODE);
+                stockList = analyzer.analyzeUsStocks(IS_TESTING_MODE);
                 
                 printStockDetails(stockList, analyzer, writer);
             }
+            dashboard.generateDashboard(stockList, analyzer);
         } catch (IOException e) {
             System.err.println("An error occurred during stock analysis: " + e.getMessage());
             e.printStackTrace();

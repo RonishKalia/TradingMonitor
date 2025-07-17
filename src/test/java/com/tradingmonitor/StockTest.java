@@ -22,6 +22,9 @@ public class StockTest {
             new HashMap<>(),
             new HashMap<>(),
             new HashMap<>(),
+            new HashMap<>(),
+            new HashMap<>(),
+            new HashMap<>(),
             new HashMap<>()
         );
 

@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public class StockAnalyzerTest {
@@ -19,13 +20,16 @@ public class StockAnalyzerTest {
     // Stub for StockApiClient for testing purposes
     class StockApiClientStub extends StockApiClient {
         public StockApiClientStub() {
-            super("test-api-key", "test-api-key", "test-api-key");
+            super("test-api-key", "test-api-key", "test-api-key", "test-api-key");
         }
 
         @Override
-        public List<String> fetchUsStockSymbols() throws IOException {
+        public List<String> fetchUsStockSymbols(boolean isTesting) throws IOException {
             List<String> symbols = new ArrayList<>();
             IntStream.range(0, 20).forEach(i -> symbols.add("TEST" + i));
+            if (isTesting) {
+                return symbols.stream().limit(10).collect(Collectors.toList());
+            }
             return symbols;
         }
 
@@ -40,6 +44,9 @@ public class StockAnalyzerTest {
                 BigDecimal.valueOf(1000000000),
                 BigDecimal.valueOf(1000000),
                 exchange,
+                new HashMap<>(),
+                new HashMap<>(),
+                new HashMap<>(),
                 new HashMap<>(),
                 new HashMap<>(),
                 new HashMap<>(),

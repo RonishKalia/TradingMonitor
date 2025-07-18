@@ -44,7 +44,7 @@ public class StockApiClient {
         try {
             Stock stock = polygonClient.fetchStockData(symbol, exchange);
             if (stock != null) {
-                BigDecimal peRatio = fmpClient.fetchKeyMetrics(symbol).get("peRatioTTM");
+                BigDecimal peRatio = finnhubClient.fetchBasicFinancials(symbol).get("peTTM");
                 return new Stock(symbol, stock.getName(), stock.getPrice(), peRatio, stock.getMarketCap(), stock.getVolume(), exchange, stock.getHistoricalRevenue(), stock.getHistoricalNetIncome(), stock.getHistoricalGrossProfit(), stock.getQuarterlyRevenue(), stock.getQuarterlyNetIncome(), stock.getQuarterlyGrossProfit(), stock.getQuarterlyEps(), stock.getQuarterlyDilutedEps(), stock.getWeightedAverageSharesOutstanding());
             }
         } catch (Exception e) {

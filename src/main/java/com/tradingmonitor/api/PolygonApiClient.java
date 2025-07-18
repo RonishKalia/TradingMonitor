@@ -227,7 +227,25 @@ public class PolygonApiClient implements ApiProvider {
                 }
             }
 
-            return new Stock(symbol, name, price, null, marketCap, null, null,
+            BigDecimal ttmNetIncome = quarterlyNetIncome.values().stream()
+                .limit(4)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            BigDecimal latestSharesOutstanding = weightedAverageSharesOutstanding.values().stream()
+                .findFirst()
+                .orElse(BigDecimal.ZERO);
+
+            BigDecimal ttmEps = BigDecimal.ZERO;
+            if (latestSharesOutstanding.compareTo(BigDecimal.ZERO) != 0) {
+                ttmEps = ttmNetIncome.divide(latestSharesOutstanding, 4, java.math.RoundingMode.HALF_UP);
+            }
+
+            BigDecimal peRatio = null;
+            if (price != null && ttmEps.compareTo(BigDecimal.ZERO) > 0) {
+                peRatio = price.divide(ttmEps, 2, java.math.RoundingMode.HALF_UP);
+            }
+
+            return new Stock(symbol, name, price, peRatio, marketCap, null, null,
                 filteredAnnualRevenue, filteredAnnualNetIncome, filteredAnnualGrossProfit,
                 quarterlyRevenue, quarterlyNetIncome, quarterlyGrossProfit, quarterlyEps, quarterlyDilutedEps, weightedAverageSharesOutstanding);
         } catch (InterruptedException e) {

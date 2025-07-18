@@ -25,7 +25,7 @@ import org.slf4j.LoggerFactory;
 public class PolygonApiClient implements ApiProvider {
 
     private static final Logger logger = LoggerFactory.getLogger(PolygonApiClient.class);
-    private static final String FINANCIALS_API_URL = "https://api.polygon.io/vX/reference/financials?ticker=%s&period_of_report=quarterly&limit=100&apiKey=%s";
+    private static final String FINANCIALS_API_URL = "https://api.polygon.io/vX/reference/financials?ticker=%s&limit=100&apiKey=%s";
     private static final String TICKERS_API_URL = "https://api.polygon.io/v3/reference/tickers?exchange=%s&market=stocks&active=true&apiKey=%s";
     private static final String TICKER_DETAILS_URL = "https://api.polygon.io/v3/reference/tickers/%s?apiKey=%s";
     private static final String PREVIOUS_DAY_CLOSE_URL = "https://api.polygon.io/v2/aggs/ticker/%s/prev?apiKey=%s";
@@ -140,43 +140,54 @@ public class PolygonApiClient implements ApiProvider {
             Map<String, BigDecimal> quarterlyDilutedEps = new TreeMap<>(Collections.reverseOrder());
             Map<String, BigDecimal> weightedAverageSharesOutstanding = new TreeMap<>(Collections.reverseOrder());
 
+            Map<Integer, BigDecimal> annualRevenue = new TreeMap<>(Collections.reverseOrder());
+            Map<Integer, BigDecimal> annualNetIncome = new TreeMap<>(Collections.reverseOrder());
+            Map<Integer, BigDecimal> annualGrossProfit = new TreeMap<>(Collections.reverseOrder());
+
             for (JsonElement resultElement : results) {
                 JsonObject result = resultElement.getAsJsonObject();
+                String timeframe = result.get("timeframe").getAsString();
                 String endDate = result.get("end_date").getAsString();
                 JsonObject financials = result.getAsJsonObject("financials");
                 JsonObject incomeStatement = financials.getAsJsonObject("income_statement");
 
                 if (incomeStatement != null) {
-                    if (incomeStatement.has("revenues")) {
-                        quarterlyRevenue.put(endDate, incomeStatement.get("revenues").getAsJsonObject().get("value").getAsBigDecimal());
-                    }
-                    if (incomeStatement.has("net_income_loss")) {
-                        quarterlyNetIncome.put(endDate, incomeStatement.get("net_income_loss").getAsJsonObject().get("value").getAsBigDecimal());
-                    }
-                    if (incomeStatement.has("gross_profit")) {
-                        quarterlyGrossProfit.put(endDate, incomeStatement.get("gross_profit").getAsJsonObject().get("value").getAsBigDecimal());
-                    }
-                    if (incomeStatement.has("basic_earnings_per_share")) {
-                        quarterlyEps.put(endDate, incomeStatement.get("basic_earnings_per_share").getAsJsonObject().get("value").getAsBigDecimal());
-                    }
-                    if (incomeStatement.has("diluted_earnings_per_share")) {
-                        quarterlyDilutedEps.put(endDate, incomeStatement.get("diluted_earnings_per_share").getAsJsonObject().get("value").getAsBigDecimal());
+                    if ("quarterly".equals(timeframe)) {
+                        String fiscalPeriod = result.get("fiscal_period").getAsString();
+                        String fiscalYear = result.get("fiscal_year").getAsString();
+                        String key = fiscalYear + ":" + fiscalPeriod + ":" + endDate;
+                        if (incomeStatement.has("revenues")) {
+                            quarterlyRevenue.put(key, incomeStatement.get("revenues").getAsJsonObject().get("value").getAsBigDecimal());
+                        }
+                        if (incomeStatement.has("net_income_loss")) {
+                            quarterlyNetIncome.put(key, incomeStatement.get("net_income_loss").getAsJsonObject().get("value").getAsBigDecimal());
+                        }
+                        if (incomeStatement.has("gross_profit")) {
+                            quarterlyGrossProfit.put(key, incomeStatement.get("gross_profit").getAsJsonObject().get("value").getAsBigDecimal());
+                        }
+                        if (incomeStatement.has("basic_earnings_per_share")) {
+                            quarterlyEps.put(key, incomeStatement.get("basic_earnings_per_share").getAsJsonObject().get("value").getAsBigDecimal());
+                        }
+                        if (incomeStatement.has("diluted_earnings_per_share")) {
+                            quarterlyDilutedEps.put(key, incomeStatement.get("diluted_earnings_per_share").getAsJsonObject().get("value").getAsBigDecimal());
+                        }
+                    } else if ("annual".equals(timeframe)) {
+                        int year = Integer.parseInt(endDate.substring(0, 4));
+                        if (incomeStatement.has("revenues")) {
+                            annualRevenue.put(year, incomeStatement.get("revenues").getAsJsonObject().get("value").getAsBigDecimal());
+                        }
+                        if (incomeStatement.has("net_income_loss")) {
+                            annualNetIncome.put(year, incomeStatement.get("net_income_loss").getAsJsonObject().get("value").getAsBigDecimal());
+                        }
+                        if (incomeStatement.has("gross_profit")) {
+                            annualGrossProfit.put(year, incomeStatement.get("gross_profit").getAsJsonObject().get("value").getAsBigDecimal());
+                        }
                     }
                 }
                 if (financials.has("shares")) {
                     weightedAverageSharesOutstanding.put(endDate, financials.get("shares").getAsJsonObject().get("value").getAsBigDecimal());
                 }
             }
-
-            Map<Integer, BigDecimal> annualRevenue = deriveAnnualData(quarterlyRevenue);
-            Map<Integer, BigDecimal> annualNetIncome = deriveAnnualData(quarterlyNetIncome);
-            Map<Integer, BigDecimal> annualGrossProfit = deriveAnnualData(quarterlyGrossProfit);
-
-            adjustQuarterlyData(quarterlyRevenue);
-            adjustQuarterlyData(quarterlyNetIncome);
-            adjustQuarterlyData(quarterlyGrossProfit);
-            adjustQuarterlyData(quarterlyEps);
-            adjustQuarterlyData(quarterlyDilutedEps);
 
             int currentYear = LocalDate.now().getYear();
             Map<Integer, BigDecimal> filteredAnnualRevenue = filterLastNYears(annualRevenue, 4, currentYear);
@@ -233,43 +244,5 @@ public class PolygonApiClient implements ApiProvider {
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
-    private Map<Integer, BigDecimal> deriveAnnualData(Map<String, BigDecimal> quarterlyData) {
-        Map<Integer, BigDecimal> annualData = new TreeMap<>(Collections.reverseOrder());
-        for (Map.Entry<String, BigDecimal> entry : quarterlyData.entrySet()) {
-            int year = Integer.parseInt(entry.getKey().substring(0, 4));
-            annualData.put(year, annualData.getOrDefault(year, BigDecimal.ZERO).add(entry.getValue()));
-        }
-        return annualData;
-    }
-
-    private void adjustQuarterlyData(Map<String, BigDecimal> quarterlyData) {
-        // Group by year
-        Map<Integer, List<Map.Entry<String, BigDecimal>>> byYear = quarterlyData.entrySet().stream()
-                .collect(Collectors.groupingBy(e -> Integer.parseInt(e.getKey().substring(0, 4))));
-
-        for (Map.Entry<Integer, List<Map.Entry<String, BigDecimal>>> yearEntry : byYear.entrySet()) {
-            List<Map.Entry<String, BigDecimal>> yearData = yearEntry.getValue();
-            if (yearData.size() < 2) continue; // Not enough data to compare
-
-            // Find the quarter with the largest value
-            Map.Entry<String, BigDecimal> maxEntry = yearData.stream()
-                    .max(Map.Entry.comparingByValue())
-                    .orElse(null);
-
-            if (maxEntry == null) continue;
-
-            BigDecimal sumOfOthers = BigDecimal.ZERO;
-            for (Map.Entry<String, BigDecimal> entry : yearData) {
-                if (!entry.getKey().equals(maxEntry.getKey())) {
-                    sumOfOthers = sumOfOthers.add(entry.getValue());
-                }
-            }
-
-            // Heuristic: if the max quarter is larger than the sum of the others, it's cumulative
-            if (maxEntry.getValue().compareTo(sumOfOthers) > 0) {
-                BigDecimal adjustedValue = maxEntry.getValue().subtract(sumOfOthers);
-                quarterlyData.put(maxEntry.getKey(), adjustedValue);
-            }
-        }
-    }
+    
 }

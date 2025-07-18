@@ -1,0 +1,90 @@
+Path for java installation '/usr/lib/jvm/openjdk-21' (Common Linux Locations) does not contain a java executable
+Path for java installation '/usr/lib/jvm/openjdk-17' (Common Linux Locations) does not contain a java executable
+> Task :checkKotlinGradlePluginConfigurationErrors
+> Task :compileKotlin NO-SOURCE
+> Task :compileJava UP-TO-DATE
+> Task :processResources NO-SOURCE
+> Task :classes UP-TO-DATE
+
+> Task :run
+
+=== TRADING MONITOR - STOCK ANALYSIS ===
+
+--- RUNNING IN SINGLE STOCK TESTING MODE ---
+Analyzing single stock: AAPL
+✓ AAPL - P/E: 32.36178262976134
+
+=== DETAILED STOCK DATA ===
+AAPL   | Apple Inc.           | P/E: 32.36178262976134
+  Historical Revenue:
+    2025: $95.36B (incomplete year)
+    2024: $691.87B (+1.82%)
+    2023: $679.49B (-1.77%)
+    2022: $691.72B (+4.68%)
+    2021: $660.78B
+  Historical Net Income:
+    2025: $24.78B (incomplete year)
+    2024: $175.15B (+0.11%)
+    2023: $174.95B (+0.40%)
+    2022: $174.25B (-0.25%)
+    2021: $174.68B
+  Historical Gross Profit:
+    2025: $44.87B (incomplete year)
+    2024: $320.91B (+6.12%)
+    2023: $302.39B (+0.95%)
+    2022: $299.56B (+6.83%)
+    2021: $280.41B
+  Quarterly Revenue:
+    2025-03-29: $95.36B (YoY: +5.08%) (QoQ: -23.28%)
+    2024-12-28: $124.30B (YoY: +3.95%) (QoQ: -68.21%)
+    2024-09-28: $391.04B (YoY: +2.02%) (QoQ: +355.87%)
+    2024-06-29: $85.78B (QoQ: -5.48%)
+    2024-03-30: $90.75B (QoQ: -24.10%)
+    2023-12-30: $119.58B (YoY: +2.07%) (QoQ: -68.80%)
+    2023-09-30: $383.29B (YoY: -2.80%) (QoQ: +368.58%)
+    2023-07-01: $81.80B (QoQ: -13.75%)
+    2023-04-01: $94.84B
+  Quarterly Net Income:
+    2025-03-29: $24.78B (YoY: +4.84%) (QoQ: -31.79%)
+    2024-12-28: $36.33B (YoY: +7.12%) (QoQ: -61.24%)
+    2024-09-28: $93.74B (YoY: -3.36%) (QoQ: +337.04%)
+    2024-06-29: $21.45B (QoQ: -9.26%)
+    2024-03-30: $23.64B (QoQ: -30.31%)
+    2023-12-30: $33.92B (YoY: +13.06%) (QoQ: -65.03%)
+    2023-09-30: $97.00B (YoY: -2.81%) (QoQ: +387.88%)
+    2023-07-01: $19.88B (QoQ: -17.71%)
+    2023-04-01: $24.16B
+  Quarterly Gross Profit:
+    2025-03-29: $44.87B (YoY: +6.14%) (QoQ: -23.01%)
+    2024-12-28: $58.28B (YoY: +6.23%) (QoQ: -67.75%)
+    2024-09-28: $180.68B (YoY: +6.82%) (QoQ: +355.37%)
+    2024-06-29: $39.68B (QoQ: -6.13%)
+    2024-03-30: $42.27B (QoQ: -22.94%)
+    2023-12-30: $54.86B (YoY: +8.99%) (QoQ: -67.57%)
+    2023-09-30: $169.15B (YoY: -0.96%) (QoQ: +364.53%)
+    2023-07-01: $36.41B (QoQ: -13.25%)
+    2023-04-01: $41.98B
+  Quarterly EPS (Basic):
+    2025-03-29: $1.65 (YoY: +7.84%) (QoQ: -31.54%)
+    2024-12-28: $2.41 (YoY: +10.05%) (QoQ: -60.56%)
+    2024-09-28: $6.11 (YoY: -0.81%) (QoQ: +336.43%)
+    2024-06-29: $1.4 (QoQ: -8.50%)
+    2024-03-30: $1.53 (QoQ: -30.14%)
+    2023-12-30: $2.19 (YoY: +15.87%) (QoQ: -64.45%)
+    2023-09-30: $6.16 (YoY: +0.16%) (QoQ: +385.04%)
+    2023-07-01: $1.27 (QoQ: -16.99%)
+    2023-04-01: $1.53
+  Quarterly EPS (Diluted):
+    2025-03-29: $1.65 (YoY: +7.84%) (QoQ: -31.25%)
+    2024-12-28: $2.4 (YoY: +10.09%) (QoQ: -60.53%)
+    2024-09-28: $6.08 (YoY: -0.82%) (QoQ: +334.29%)
+    2024-06-29: $1.4 (QoQ: -8.50%)
+    2024-03-30: $1.53 (QoQ: -29.82%)
+    2023-12-30: $2.18 (YoY: +15.96%) (QoQ: -64.44%)
+    2023-09-30: $6.13 (YoY: +0.33%) (QoQ: +386.51%)
+    2023-07-01: $1.26 (QoQ: -17.11%)
+    2023-04-01: $1.52
+Opening in existing browser session.
+
+BUILD SUCCESSFUL in 3s
+3 actionable tasks: 2 executed, 1 up-to-date

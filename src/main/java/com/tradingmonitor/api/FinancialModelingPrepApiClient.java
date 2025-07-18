@@ -92,6 +92,7 @@ public class FinancialModelingPrepApiClient implements ApiProvider {
         try {
             String url = String.format(FMP_FINANCIALS_URL_FORMAT, symbol, apiKey);
             HttpResponse<String> response = sendRequest(url);
+            System.out.println("FMP Financials Response for " + symbol + ": " + response.body());
             if (response.statusCode() == 200) {
                 JsonNode financialsNode = objectMapper.readTree(response.body());
                 if (financialsNode.isArray()) {

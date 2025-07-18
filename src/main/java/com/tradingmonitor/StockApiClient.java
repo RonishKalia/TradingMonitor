@@ -1,9 +1,9 @@
 package com.tradingmonitor;
 
+import com.tradingmonitor.api.FinancialModelingPrepApiClient;
 import com.tradingmonitor.api.PolygonApiClient;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 import org.slf4j.Logger;
@@ -14,9 +14,11 @@ public class StockApiClient {
     private static final Logger logger = LoggerFactory.getLogger(StockApiClient.class);
 
     private final PolygonApiClient polygonClient;
+    private final FinancialModelingPrepApiClient fmpClient;
 
     public StockApiClient(String finnhubApiKey, String fmpApiKey, String alphaVantageApiKey, String polygonApiKey) {
         this.polygonClient = new PolygonApiClient(polygonApiKey);
+        this.fmpClient = new FinancialModelingPrepApiClient(fmpApiKey);
     }
 
     public List<String> fetchUsStockSymbols(boolean isTesting) throws IOException {
@@ -39,17 +41,8 @@ public class StockApiClient {
         try {
             Stock stock = polygonClient.fetchStockData(symbol, exchange);
             if (stock != null) {
-                BigDecimal price = stock.getPrice();
-                if (price != null && !stock.getQuarterlyDilutedEps().isEmpty()) {
-                    BigDecimal ttmEps = stock.getQuarterlyDilutedEps().values().stream()
-                                            .limit(4)
-                                            .reduce(BigDecimal.ZERO, BigDecimal::add);
-                    if (ttmEps.compareTo(BigDecimal.ZERO) > 0) {
-                        BigDecimal peRatio = price.divide(ttmEps, 2, RoundingMode.HALF_UP);
-                        return new Stock(symbol, stock.getName(), price, peRatio, stock.getMarketCap(), stock.getVolume(), exchange, stock.getHistoricalRevenue(), stock.getHistoricalNetIncome(), stock.getHistoricalGrossProfit(), stock.getQuarterlyRevenue(), stock.getQuarterlyNetIncome(), stock.getQuarterlyGrossProfit(), stock.getQuarterlyEps(), stock.getQuarterlyDilutedEps(), stock.getWeightedAverageSharesOutstanding());
-                    }
-                }
-                return stock;
+                BigDecimal peRatio = fmpClient.fetchKeyMetrics(symbol).get("peRatioTTM");
+                return new Stock(symbol, stock.getName(), stock.getPrice(), peRatio, stock.getMarketCap(), stock.getVolume(), exchange, stock.getHistoricalRevenue(), stock.getHistoricalNetIncome(), stock.getHistoricalGrossProfit(), stock.getQuarterlyRevenue(), stock.getQuarterlyNetIncome(), stock.getQuarterlyGrossProfit(), stock.getQuarterlyEps(), stock.getQuarterlyDilutedEps(), stock.getWeightedAverageSharesOutstanding());
             }
         } catch (Exception e) {
             logger.error("An unexpected error occurred while fetching data for {}", symbol, e);

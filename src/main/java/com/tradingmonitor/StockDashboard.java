@@ -140,65 +140,54 @@ public class StockDashboard {
         }
 
         final List<Map.Entry<?, ?>> entries = new ArrayList<>(data.entrySet());
-        
+        List<Map.Entry<?, ?>> filteredEntries = new ArrayList<>();
+
         if (label.contains("Quarterly")) {
-            Comparator<Map.Entry<?, ?>> customComparator = (e1, e2) -> {
-                String dateStr1 = (String) e1.getKey();
-                String dateStr2 = (String) e2.getKey();
-                int month1 = Integer.parseInt(dateStr1.substring(5, 7));
-                int month2 = Integer.parseInt(dateStr2.substring(5, 7));
-                int year1 = Integer.parseInt(dateStr1.substring(0, 4));
-                int year2 = Integer.parseInt(dateStr2.substring(0, 4));
-                int quarter1 = (month1 - 1) / 3 + 1;
-                int quarter2 = (month2 - 1) / 3 + 1;
+            Map<String, List<Map.Entry<?, ?>>> groupedByQuarter = entries.stream()
+                .collect(Collectors.groupingBy(e -> ((String) e.getKey()).split(":")[1]));
+
+            List<Map.Entry<?, ?>> lastEntries = new ArrayList<>();
+            for (List<Map.Entry<?, ?>> quarterEntries : groupedByQuarter.values()) {
+                quarterEntries.sort(Comparator.comparing(e -> (String) e.getKey(), Comparator.reverseOrder()));
+                int size = quarterEntries.size();
+                if (size > 3) {
+                    lastEntries.addAll(quarterEntries.subList(0, 3));
+                } else {
+                    lastEntries.addAll(quarterEntries);
+                }
+            }
+
+            Comparator<Map.Entry<?, ?>> finalComparator = (e1, e2) -> {
+                String[] parts1 = ((String) e1.getKey()).split(":");
+                String[] parts2 = ((String) e2.getKey()).split(":");
+                String fiscalPeriod1 = parts1[1];
+                String fiscalPeriod2 = parts2[1];
+                String fiscalYear1 = parts1[0];
+                String fiscalYear2 = parts2[0];
+
+                int quarter1 = Integer.parseInt(fiscalPeriod1.substring(1));
+                int quarter2 = Integer.parseInt(fiscalPeriod2.substring(1));
 
                 if (quarter1 != quarter2) {
                     return Integer.compare(quarter1, quarter2);
                 } else {
-                    return Integer.compare(year1, year2);
+                    return fiscalYear1.compareTo(fiscalYear2);
                 }
             };
-            entries.sort(customComparator);
+            lastEntries.sort(finalComparator);
+            filteredEntries.addAll(lastEntries);
         } else {
             entries.sort((e1, e2) -> ((Comparable) e1.getKey()).compareTo(e2.getKey()));
-        }
-
-        List<Map.Entry<?, ?>> filteredEntries = new ArrayList<>();
-        if (label.contains("Quarterly")) {
-            filteredEntries = entries.stream()
-                .sorted(Comparator.comparing(e -> (String) e.getKey(), Comparator.reverseOrder()))
-                .limit(9)
-                .collect(Collectors.toList());
-            
-            Comparator<Map.Entry<?, ?>> customComparator = (e1, e2) -> {
-                String dateStr1 = (String) e1.getKey();
-                String dateStr2 = (String) e2.getKey();
-                int month1 = Integer.parseInt(dateStr1.substring(5, 7));
-                int month2 = Integer.parseInt(dateStr2.substring(5, 7));
-                int year1 = Integer.parseInt(dateStr1.substring(0, 4));
-                int year2 = Integer.parseInt(dateStr2.substring(0, 4));
-                int quarter1 = (month1 - 1) / 3 + 1;
-                int quarter2 = (month2 - 1) / 3 + 1;
-
-                if (quarter1 != quarter2) {
-                    return Integer.compare(quarter1, quarter2);
-                } else {
-                    return Integer.compare(year1, year2);
-                }
-            };
-            filteredEntries.sort(customComparator);
-        } else {
             filteredEntries.addAll(entries);
         }
 
         String labels;
         if (label.contains("Quarterly")) {
             labels = filteredEntries.stream().map(e -> {
-                String dateStr = (String) e.getKey();
-                int month = Integer.parseInt(dateStr.substring(5, 7));
-                int year = Integer.parseInt(dateStr.substring(0, 4));
-                int quarter = (month - 1) / 3 + 1;
-                return String.format("\"Q%d %d\"", quarter, year);
+                String[] parts = ((String) e.getKey()).split(":");
+                String fiscalYear = parts[0];
+                String fiscalPeriod = parts[1];
+                return String.format("\"%s %s\"", fiscalPeriod, fiscalYear);
             }).collect(Collectors.joining(", "));
         } else {
             labels = filteredEntries.stream().map(e -> String.format("\"%s\"", e.getKey())).collect(Collectors.joining(", "));
@@ -213,20 +202,16 @@ public class StockDashboard {
         for (int i = 0; i < filteredEntries.size(); i++) {
             BigDecimal growth = null;
             if (i > 0) {
-                boolean shouldCalculate = true;
                 if (label.contains("Quarterly")) {
-                    String dateStr1 = (String) filteredEntries.get(i).getKey();
-                    String dateStr2 = (String) filteredEntries.get(i - 1).getKey();
-                    int month1 = Integer.parseInt(dateStr1.substring(5, 7));
-                    int month2 = Integer.parseInt(dateStr2.substring(5, 7));
-                    int quarter1 = (month1 - 1) / 3 + 1;
-                    int quarter2 = (month2 - 1) / 3 + 1;
-                    if (quarter1 != quarter2) {
-                        shouldCalculate = false;
-                    }
-                }
+                    String[] currentKeyParts = ((String) filteredEntries.get(i).getKey()).split(":");
+                    String[] prevKeyParts = ((String) filteredEntries.get(i - 1).getKey()).split(":");
+                    String currentFiscalPeriod = currentKeyParts[1];
+                    String prevFiscalPeriod = prevKeyParts[1];
 
-                if (shouldCalculate) {
+                    if (currentFiscalPeriod.equals(prevFiscalPeriod)) {
+                        growth = analyzer.calculateGrowth((BigDecimal) filteredEntries.get(i).getValue(), (BigDecimal) filteredEntries.get(i - 1).getValue());
+                    }
+                } else {
                     growth = analyzer.calculateGrowth((BigDecimal) filteredEntries.get(i).getValue(), (BigDecimal) filteredEntries.get(i - 1).getValue());
                 }
             }

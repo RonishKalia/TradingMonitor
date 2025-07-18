@@ -119,27 +119,26 @@ public class Stock {
             System.out.println(header);
             writer.println(header);
 
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
             List<Map.Entry<String, BigDecimal>> sortedData = data.entrySet().stream()
                 .sorted(Map.Entry.<String, BigDecimal>comparingByKey().reversed())
-                .limit(9)
                 .collect(Collectors.toList());
 
             for (int i = 0; i < sortedData.size(); i++) {
                 Map.Entry<String, BigDecimal> currentEntry = sortedData.get(i);
                 String formattedValue = analyzer.formatBigNumber(currentEntry.getValue());
                 final String[] yoyGrowthString = {""};
-                final String[] qoqGrowthString = {""};
 
                 // YoY Growth
-                LocalDate currentDate = LocalDate.parse(currentEntry.getKey(), formatter);
-                int currentMonth = currentDate.getMonthValue();
-                int previousYear = currentDate.getYear() - 1;
-
+                String[] currentKeyParts = currentEntry.getKey().split(":");
+                String currentFiscalYear = currentKeyParts[0];
+                String currentFiscalPeriod = currentKeyParts[1];
+                
                 data.entrySet().stream()
                     .filter(e -> {
-                        LocalDate d = LocalDate.parse(e.getKey(), formatter);
-                        return d.getYear() == previousYear && d.getMonthValue() == currentMonth;
+                        String[] keyParts = e.getKey().split(":");
+                        String fiscalYear = keyParts[0];
+                        String fiscalPeriod = keyParts[1];
+                        return fiscalPeriod.equals(currentFiscalPeriod) && Integer.parseInt(fiscalYear) == Integer.parseInt(currentFiscalYear) - 1;
                     })
                     .findFirst()
                     .ifPresent(previousEntry -> {
@@ -148,17 +147,9 @@ public class Stock {
                             yoyGrowthString[0] = String.format(" (YoY: %s%.2f%%)", growth.signum() > 0 ? "+" : "", growth);
                         }
                     });
-
-                // QoQ Growth
-                if (i < sortedData.size() - 1) {
-                    Map.Entry<String, BigDecimal> previousQuarterEntry = sortedData.get(i + 1);
-                    BigDecimal growth = analyzer.calculateGrowth(currentEntry.getValue(), previousQuarterEntry.getValue());
-                    if (growth != null) {
-                        qoqGrowthString[0] = String.format(" (QoQ: %s%.2f%%)", growth.signum() > 0 ? "+" : "", growth);
-                    }
-                }
-
-                String line = String.format("    %s: $%s%s%s", currentEntry.getKey(), formattedValue, yoyGrowthString[0], qoqGrowthString[0]);
+                
+                String displayKey = currentKeyParts[0] + " " + currentKeyParts[1];
+                String line = String.format("    %s: $%s%s", displayKey, formattedValue, yoyGrowthString[0]);
                 System.out.println(line);
                 writer.println(line);
             }

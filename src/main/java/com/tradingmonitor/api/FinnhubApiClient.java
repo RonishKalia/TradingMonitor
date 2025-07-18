@@ -25,6 +25,7 @@ public class FinnhubApiClient implements ApiProvider {
     private static final String QUOTE_URL_FORMAT = BASE_URL + "/quote?symbol=%s&token=%s";
     private static final String PROFILE_URL_FORMAT = BASE_URL + "/stock/profile2?symbol=%s&token=%s";
     private static final String SYMBOL_URL_FORMAT = BASE_URL + "/stock/symbol?exchange=%s&token=%s";
+    private static final String METRIC_URL_FORMAT = BASE_URL + "/stock/metric?symbol=%s&metric=all&token=%s";
     private static final int MAX_REQUESTS_PER_MINUTE = 5;
     private static final long TIME_WINDOW_MS = 60000;
 
@@ -59,6 +60,28 @@ public class FinnhubApiClient implements ApiProvider {
         rateLimit();
         HttpRequest request = HttpRequest.newBuilder().uri(URI.create(url)).build();
         return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+    }
+
+    public Map<String, BigDecimal> fetchBasicFinancials(String symbol) throws IOException {
+        Map<String, BigDecimal> metrics = new HashMap<>();
+        try {
+            String url = String.format(METRIC_URL_FORMAT, symbol, apiKey);
+            HttpResponse<String> response = sendRequest(url);
+            if (response.statusCode() == 200) {
+                JsonNode rootNode = objectMapper.readTree(response.body());
+                JsonNode metricNode = rootNode.get("metric");
+                if (metricNode != null) {
+                    metrics.put("peTTM", toBigDecimal(metricNode.get("peTTM")));
+                }
+            } else {
+                logger.warn("Failed to fetch basic financials for {}: Status {}", symbol, response.statusCode());
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            logger.error("Interrupted while fetching basic financials for {}", symbol, e);
+            throw new IOException("Interrupted while fetching basic financials for " + symbol, e);
+        }
+        return metrics;
     }
 
     public Map<String, BigDecimal> fetchQuote(String symbol) throws IOException {

@@ -14,7 +14,7 @@ public class Main {
     private static final String ALPHA_VANTAGE_API_KEY = "T03NLMTO0T4J9PC1";
     private static final String POLYGON_API_KEY = "7CrGcKbTwnPRRsksHHX2cLEfDun9BSt4";
     private static final boolean IS_TESTING_MODE = true;
-    private static final boolean IS_SINGLE_STOCK_TEST_MODE = true;
+    private static final boolean IS_SINGLE_STOCK_TEST_MODE = false;
     private static final String SINGLE_STOCK_SYMBOL = "AAPL";
     private static final String OUTPUT_FILE_PATH = "stock_analysis_output.txt";
 

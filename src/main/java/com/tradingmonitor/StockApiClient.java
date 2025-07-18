@@ -1,6 +1,7 @@
 package com.tradingmonitor;
 
 import com.tradingmonitor.api.FinancialModelingPrepApiClient;
+import com.tradingmonitor.api.FinnhubApiClient;
 import com.tradingmonitor.api.PolygonApiClient;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -15,10 +16,12 @@ public class StockApiClient {
 
     private final PolygonApiClient polygonClient;
     private final FinancialModelingPrepApiClient fmpClient;
+    private final FinnhubApiClient finnhubClient;
 
     public StockApiClient(String finnhubApiKey, String fmpApiKey, String alphaVantageApiKey, String polygonApiKey) {
         this.polygonClient = new PolygonApiClient(polygonApiKey);
         this.fmpClient = new FinancialModelingPrepApiClient(fmpApiKey);
+        this.finnhubClient = new FinnhubApiClient(finnhubApiKey);
     }
 
     public List<String> fetchUsStockSymbols(boolean isTesting) throws IOException {

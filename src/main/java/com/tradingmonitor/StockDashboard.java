@@ -33,10 +33,10 @@ public class StockDashboard {
         sb.append("<style>");
         sb.append("body { background-color: #282a36; font-family: 'Roboto Mono', monospace; color: #f8f8f2; }");
         sb.append("nav { background-color: #21222c; box-shadow: none; }");
-        sb.append(".container { width: 90%; max-width: 1800px; margin-top: 40px; margin-bottom: 40px; }");
-        sb.append(".card { background-color: #44475a; border-radius: 16px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); border: 1px solid #6272a4; }");
-        sb.append(".card .card-content { padding: 32px; }");
-        sb.append(".card .card-title { font-weight: 500; color: #ff79c6; }");
+        sb.append(".container { max-width: 1200px; }");
+        sb.append(".card { background-color: #44475a; border-radius: 16px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); border: 1px solid #6272a4; flex: 1 1 100%; margin: 10px; display: flex; flex-direction: column; }");
+        sb.append(".card .card-content { padding: 32px; flex-grow: 1; }");
+        sb.append(".card .card-title { font-size: 1.5rem; font-weight: 500; color: #ff79c6; }");
         sb.append(".stat-value { font-size: 2.2rem; font-weight: 500; color: #8be9fd; }");
         sb.append(".stat-label { font-size: 0.9rem; color: #6272a4; text-transform: uppercase; }");
         sb.append(".tabs { background-color: transparent; }");
@@ -44,8 +44,9 @@ public class StockDashboard {
         sb.append(".tabs .tab a:hover { background-color: rgba(98, 114, 164, 0.2); }");
         sb.append(".tabs .tab a.active { background-color: #6272a4; color: #f8f8f2; font-weight: 500; }");
         sb.append(".tabs .indicator { display: none; }");
-        sb.append(".chart-wrapper { background: #282a36; border-radius: 12px; padding: 24px; margin-top: 20px; height: 450px; border: 1px solid #6272a4; }");
+        sb.append(".chart-wrapper { background: #282a36; border-radius: 12px; padding: 24px; margin-top: 20px; height: 40vh; max-height: 600px; border: 1px solid #6272a4; flex-grow: 1; }");
         sb.append(".chart-title { text-align: center; font-size: 1.1rem; font-weight: 500; color: #bd93f9; margin-bottom: 15px; }");
+        sb.append(".tab-content { display: none; } .tab-content.active { display: block; }");
         sb.append("</style>");
         sb.append("</head><body>");
 
@@ -54,7 +55,7 @@ public class StockDashboard {
         sb.append("<div class=\"container\">");
 
         for (Stock stock : stocks) {
-            sb.append("<div class=\"card\" style=\"margin-bottom: 40px;\">");
+            sb.append("<div class=\"card\">");
             sb.append("<div class=\"card-content\">");
             sb.append("<span class=\"card-title\">").append(stock.getName()).append(" (").append(stock.getSymbol()).append(")</span>");
             sb.append("<div class=\"row\" style=\"margin-top: 20px;\">");
@@ -68,8 +69,8 @@ public class StockDashboard {
             sb.append("</div>");
 
             sb.append("<div class=\"card-content grey darken-3\" style=\"padding-top: 0;\">");
-            sb.append("<div id=\"historical-").append(stock.getSymbol()).append("\">").append(createChartTabs(stock, "historical")).append("</div>");
-            sb.append("<div id=\"quarterly-").append(stock.getSymbol()).append("\">").append(createChartTabs(stock, "quarterly")).append("</div>");
+            sb.append("<div id=\"historical-").append(stock.getSymbol()).append("\" class=\"tab-content active\">").append(createChartTabs(stock, "historical")).append("</div>");
+            sb.append("<div id=\"quarterly-").append(stock.getSymbol()).append("\" class=\"tab-content\">").append(createChartTabs(stock, "quarterly")).append("</div>");
             sb.append("</div>");
             sb.append("</div>");
         }
@@ -84,11 +85,17 @@ public class StockDashboard {
         for (Stock stock : stocks) {
             String symbol = stock.getSymbol();
             sb.append("var tabs_").append(symbol).append(" = document.getElementById('tabs-").append(symbol).append("');");
-            sb.append("M.Tabs.init(tabs_").append(symbol).append(", { onShow: function(tab) {");
-            sb.append("if (tab.id.startsWith('quarterly-')) { initQuarterlyCharts_").append(symbol).append("(); }");
-            sb.append("else if (tab.id.startsWith('historical-')) { initHistoricalCharts_").append(symbol).append("(); }");
-            sb.append("} });");
+            sb.append("var tabsInstance_").append(symbol).append(" = M.Tabs.init(tabs_").append(symbol).append(", {});");
+            sb.append("tabs_").append(symbol).append(".addEventListener('click', function(e) {");
+            sb.append("if (e.target.tagName === 'A') {");
+            sb.append("var tabId = e.target.getAttribute('href');");
+            sb.append("document.querySelectorAll('#' + '").append(symbol).append("' + ' .tab-content').forEach(function(tc) { tc.style.display = 'none'; });");
+            sb.append("document.querySelector(tabId).style.display = 'block';");
+            sb.append("if (tabId.includes('quarterly')) { initQuarterlyCharts_").append(symbol).append("(); }");
+            sb.append("}");
+            sb.append("});");
             sb.append("initHistoricalCharts_").append(symbol).append("();");
+            sb.append("document.querySelector('#historical-").append(symbol).append("').style.display = 'block';");
         }
         sb.append("});");
 
@@ -132,7 +139,7 @@ public class StockDashboard {
             return "";
         }
 
-        List<Map.Entry<?, ?>> entries = new ArrayList<>(data.entrySet());
+        final List<Map.Entry<?, ?>> entries = new ArrayList<>(data.entrySet());
         
         if (label.contains("Quarterly")) {
             Comparator<Map.Entry<?, ?>> customComparator = (e1, e2) -> {
@@ -156,9 +163,37 @@ public class StockDashboard {
             entries.sort((e1, e2) -> ((Comparable) e1.getKey()).compareTo(e2.getKey()));
         }
 
+        List<Map.Entry<?, ?>> filteredEntries = new ArrayList<>();
+        if (label.contains("Quarterly")) {
+            filteredEntries = entries.stream()
+                .sorted(Comparator.comparing(e -> (String) e.getKey(), Comparator.reverseOrder()))
+                .limit(9)
+                .collect(Collectors.toList());
+            
+            Comparator<Map.Entry<?, ?>> customComparator = (e1, e2) -> {
+                String dateStr1 = (String) e1.getKey();
+                String dateStr2 = (String) e2.getKey();
+                int month1 = Integer.parseInt(dateStr1.substring(5, 7));
+                int month2 = Integer.parseInt(dateStr2.substring(5, 7));
+                int year1 = Integer.parseInt(dateStr1.substring(0, 4));
+                int year2 = Integer.parseInt(dateStr2.substring(0, 4));
+                int quarter1 = (month1 - 1) / 3 + 1;
+                int quarter2 = (month2 - 1) / 3 + 1;
+
+                if (quarter1 != quarter2) {
+                    return Integer.compare(quarter1, quarter2);
+                } else {
+                    return Integer.compare(year1, year2);
+                }
+            };
+            filteredEntries.sort(customComparator);
+        } else {
+            filteredEntries.addAll(entries);
+        }
+
         String labels;
         if (label.contains("Quarterly")) {
-            labels = entries.stream().map(e -> {
+            labels = filteredEntries.stream().map(e -> {
                 String dateStr = (String) e.getKey();
                 int month = Integer.parseInt(dateStr.substring(5, 7));
                 int year = Integer.parseInt(dateStr.substring(0, 4));
@@ -166,22 +201,22 @@ public class StockDashboard {
                 return String.format("\"Q%d %d\"", quarter, year);
             }).collect(Collectors.joining(", "));
         } else {
-            labels = entries.stream().map(e -> String.format("\"%s\"", e.getKey())).collect(Collectors.joining(", "));
+            labels = filteredEntries.stream().map(e -> String.format("\"%s\"", e.getKey())).collect(Collectors.joining(", "));
         }
 
-        String values = entries.stream()
+        String values = filteredEntries.stream()
                 .map(e -> ((BigDecimal) e.getValue()).divide(BigDecimal.valueOf(1000000)))
                 .map(String::valueOf)
                 .collect(Collectors.joining(", "));
         
         List<String> growthPercentages = new ArrayList<>();
-        for (int i = 0; i < entries.size(); i++) {
+        for (int i = 0; i < filteredEntries.size(); i++) {
             BigDecimal growth = null;
             if (i > 0) {
                 boolean shouldCalculate = true;
                 if (label.contains("Quarterly")) {
-                    String dateStr1 = (String) entries.get(i).getKey();
-                    String dateStr2 = (String) entries.get(i - 1).getKey();
+                    String dateStr1 = (String) filteredEntries.get(i).getKey();
+                    String dateStr2 = (String) filteredEntries.get(i - 1).getKey();
                     int month1 = Integer.parseInt(dateStr1.substring(5, 7));
                     int month2 = Integer.parseInt(dateStr2.substring(5, 7));
                     int quarter1 = (month1 - 1) / 3 + 1;
@@ -192,7 +227,7 @@ public class StockDashboard {
                 }
 
                 if (shouldCalculate) {
-                    growth = analyzer.calculateGrowth((BigDecimal) entries.get(i).getValue(), (BigDecimal) entries.get(i - 1).getValue());
+                    growth = analyzer.calculateGrowth((BigDecimal) filteredEntries.get(i).getValue(), (BigDecimal) filteredEntries.get(i - 1).getValue());
                 }
             }
             if (growth != null) {
@@ -242,7 +277,8 @@ public class StockDashboard {
                 "scales: { " +
                     "y: { beginAtZero: true, grid: { color: '#6272a4', drawBorder: false }, ticks: { color: '#f8f8f2', callback: function(value) { return value + 'M'; } } }, " +
                     "x: { grid: { display: false }, ticks: { color: '#f8f8f2' } } " +
-                "} }" +
+                "}" +
+            "}" +
             "});",
             chartId, symbol, labels, label, values, bgColor, borderColor, growthData
         );

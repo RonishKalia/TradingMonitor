@@ -168,19 +168,15 @@ public class PolygonApiClient implements ApiProvider {
                 }
             }
 
-            adjustQ4Data(quarterlyRevenue);
-            adjustQ4Data(quarterlyNetIncome);
-            adjustQ4Data(quarterlyGrossProfit);
-            adjustQ4Data(quarterlyEps);
-            adjustQ4Data(quarterlyDilutedEps);
-
-            Map<String, BigDecimal> filteredQuarterlyRevenue = filterLastNQuarters(quarterlyRevenue, 8);
-            Map<String, BigDecimal> filteredQuarterlyNetIncome = filterLastNQuarters(quarterlyNetIncome, 8);
-            Map<String, BigDecimal> filteredQuarterlyGrossProfit = filterLastNQuarters(quarterlyGrossProfit, 8);
-
             Map<Integer, BigDecimal> annualRevenue = deriveAnnualData(quarterlyRevenue);
             Map<Integer, BigDecimal> annualNetIncome = deriveAnnualData(quarterlyNetIncome);
             Map<Integer, BigDecimal> annualGrossProfit = deriveAnnualData(quarterlyGrossProfit);
+
+            adjustQuarterlyData(quarterlyRevenue);
+            adjustQuarterlyData(quarterlyNetIncome);
+            adjustQuarterlyData(quarterlyGrossProfit);
+            adjustQuarterlyData(quarterlyEps);
+            adjustQuarterlyData(quarterlyDilutedEps);
 
             int currentYear = LocalDate.now().getYear();
             Map<Integer, BigDecimal> filteredAnnualRevenue = filterLastNYears(annualRevenue, 4, currentYear);
@@ -222,49 +218,14 @@ public class PolygonApiClient implements ApiProvider {
 
             return new Stock(symbol, name, price, null, marketCap, null, null,
                 filteredAnnualRevenue, filteredAnnualNetIncome, filteredAnnualGrossProfit,
-                filteredQuarterlyRevenue, filteredQuarterlyNetIncome, filteredQuarterlyGrossProfit, quarterlyEps, quarterlyDilutedEps, weightedAverageSharesOutstanding);
+                quarterlyRevenue, quarterlyNetIncome, quarterlyGrossProfit, quarterlyEps, quarterlyDilutedEps, weightedAverageSharesOutstanding);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IOException("Interrupted during fetch", e);
         }
     }
 
-    private void adjustQ4Data(Map<String, BigDecimal> quarterlyData) {
-        for (Map.Entry<String, BigDecimal> entry : quarterlyData.entrySet()) {
-            String endDate = entry.getKey();
-            if (endDate.substring(5, 7).equals("12")) { // Check if it's a Q4 report
-                int year = Integer.parseInt(endDate.substring(0, 4));
-                BigDecimal q1 = BigDecimal.ZERO;
-                BigDecimal q2 = BigDecimal.ZERO;
-                BigDecimal q3 = BigDecimal.ZERO;
-
-                for (Map.Entry<String, BigDecimal> innerEntry : quarterlyData.entrySet()) {
-                    String innerEndDate = innerEntry.getKey();
-                    if (Integer.parseInt(innerEndDate.substring(0, 4)) == year) {
-                        switch (innerEndDate.substring(5, 7)) {
-                            case "03":
-                                q1 = innerEntry.getValue();
-                                break;
-                            case "06":
-                                q2 = innerEntry.getValue();
-                                break;
-                            case "09":
-                                q3 = innerEntry.getValue();
-                                break;
-                        }
-                    }
-                }
-                BigDecimal q4 = entry.getValue().subtract(q1).subtract(q2).subtract(q3);
-                entry.setValue(q4);
-            }
-        }
-    }
-
-    private Map<String, BigDecimal> filterLastNQuarters(Map<String, BigDecimal> quarterlyData, int quarters) {
-        return quarterlyData.entrySet().stream()
-                .limit(quarters)
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, java.util.LinkedHashMap::new));
-    }
+    
 
     private Map<Integer, BigDecimal> filterLastNYears(Map<Integer, BigDecimal> annualData, int years, int currentYear) {
         return annualData.entrySet().stream()
@@ -279,5 +240,36 @@ public class PolygonApiClient implements ApiProvider {
             annualData.put(year, annualData.getOrDefault(year, BigDecimal.ZERO).add(entry.getValue()));
         }
         return annualData;
+    }
+
+    private void adjustQuarterlyData(Map<String, BigDecimal> quarterlyData) {
+        // Group by year
+        Map<Integer, List<Map.Entry<String, BigDecimal>>> byYear = quarterlyData.entrySet().stream()
+                .collect(Collectors.groupingBy(e -> Integer.parseInt(e.getKey().substring(0, 4))));
+
+        for (Map.Entry<Integer, List<Map.Entry<String, BigDecimal>>> yearEntry : byYear.entrySet()) {
+            List<Map.Entry<String, BigDecimal>> yearData = yearEntry.getValue();
+            if (yearData.size() < 2) continue; // Not enough data to compare
+
+            // Find the quarter with the largest value
+            Map.Entry<String, BigDecimal> maxEntry = yearData.stream()
+                    .max(Map.Entry.comparingByValue())
+                    .orElse(null);
+
+            if (maxEntry == null) continue;
+
+            BigDecimal sumOfOthers = BigDecimal.ZERO;
+            for (Map.Entry<String, BigDecimal> entry : yearData) {
+                if (!entry.getKey().equals(maxEntry.getKey())) {
+                    sumOfOthers = sumOfOthers.add(entry.getValue());
+                }
+            }
+
+            // Heuristic: if the max quarter is larger than the sum of the others, it's cumulative
+            if (maxEntry.getValue().compareTo(sumOfOthers) > 0) {
+                BigDecimal adjustedValue = maxEntry.getValue().subtract(sumOfOthers);
+                quarterlyData.put(maxEntry.getKey(), adjustedValue);
+            }
+        }
     }
 }
